@@ -20,3 +20,5 @@ buildNumber.properties
 \.classpath
 
 \.project
+
+demo\.iml
