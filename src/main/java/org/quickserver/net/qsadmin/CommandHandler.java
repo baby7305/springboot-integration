@@ -1,10 +1,10 @@
 /*
- * This file is part of the QuickServer library 
+ * This file is part of the QuickServer library
  * Copyright (C) QuickServer.org
  *
  * Use, modification, copying and distribution of this software is subject to
- * the terms and conditions of the GNU Lesser General Public License. 
- * You should have received a copy of the GNU LGP License along with this 
+ * the terms and conditions of the GNU Lesser General Public License.
+ * You should have received a copy of the GNU LGP License along with this
  * library; if not, you can download a copy from <http://www.quickserver.org/>.
  *
  * For questions, suggestions, bug-reports, enhancement-requests etc.
@@ -14,26 +14,25 @@
 
 package org.quickserver.net.qsadmin;
 
-import java.net.*;
-import java.io.*;
+import org.apache.commons.pool.ObjectPool;
+import org.quickserver.net.AppException;
+import org.quickserver.net.server.*;
+import org.quickserver.util.JvmUtil;
+import org.quickserver.util.MyString;
+import org.quickserver.util.pool.PoolHelper;
+import org.quickserver.util.pool.QSObjectPool;
+import org.quickserver.util.pool.thread.ClientThread;
+
+import java.io.File;
+import java.io.IOException;
+import java.net.SocketTimeoutException;
 import java.text.Format;
 import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.Iterator;
 import java.util.StringTokenizer;
-
-import org.quickserver.net.server.ClientCommandHandler;
-import org.quickserver.net.server.ClientEventHandler;
-import org.quickserver.net.server.ClientHandler;
-import org.quickserver.net.server.QuickServer;
-import org.quickserver.net.AppException;
-
-import java.util.logging.*;
-
-import org.quickserver.util.*;
-import org.quickserver.util.pool.thread.*;
-import java.util.*;
-import org.quickserver.util.pool.*;
-import org.apache.commons.pool.ObjectPool;
-import org.quickserver.net.server.ClientIdentifier;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  * ClientCommandHandler for QSAdminServer.
@@ -41,12 +40,12 @@ import org.quickserver.net.server.ClientIdentifier;
  * = Protocol =<br>
  * Each response starts with a status.
  * <ul>
- *  <li>+OK = Success
- *  <li>-ERR = Failed
+ * <li>+OK = Success
+ * <li>-ERR = Failed
  * </ul>
  * If response if one lined then it follows the status.
  * Else You will get "info follows" as the first line
- * followed by with many lines of response ending by a 
+ * followed by with many lines of response ending by a
  * dot in a line by itself. i.e.,  &lt;CR&gt;&lt;LF&gt;.&lt;CR&gt;&lt;LF&gt;<br>
  * Command supported are give below .. [ Note: &lt;&lt;target&gt;&gt; = server|self ]
  * <br>&nbsp;<br>
@@ -103,10 +102,10 @@ import org.quickserver.net.server.ClientIdentifier;
  * <tr><td>memoryInfo</td><td>&nbsp;</td><td>Memory Information {Total:Used:Max}</td></tr>
  * <tr><td>set</td><td>&lt;&lt;target&gt;&gt; communicationLogging</td><td>Sets communication logging flag for the target.</td></tr>
  * <tr><td>get</td><td>&lt;&lt;target&gt;&gt; communicationLogging</td><td>Gets communication logging flag for the target.</td></tr>
-
+ *
  * <tr><td>set</td><td>&lt;&lt;target&gt;&gt; objectPoolConfig-maxActive</td><td>Sets maxActive of objectPoolConfig for the target.</td></tr>
  * <tr><td>get</td><td>&lt;&lt;target&gt;&gt; objectPoolConfig-maxActive</td><td>Gets maxActive of objectPoolConfig for the target.</td></tr>
-
+ *
  * <tr><td>set</td><td>&lt;&lt;target&gt;&gt; objectPoolConfig-maxIdle</td><td>Sets maxIdle of objectPoolConfig for the target.</td></tr>
  * <tr><td>get</td><td>&lt;&lt;target&gt;&gt; objectPoolConfig-maxIdle</td><td>Gets maxIdle of objectPoolConfig for the target.</td></tr>
  *
@@ -129,7 +128,7 @@ import org.quickserver.net.server.ClientIdentifier;
  * <tr><td colspan=3>New Command in v2.0.0 </td></tr>
  * <tr><td>kill-clients-all</td><td>&lt;&lt;target&gt;&gt;</td><td>Kill all ClientHandler/Client in pool for the target.</td></tr>
  * <tr><td>kill-client-with</td><td>&lt;&lt;target&gt;&gt; &lt;&lt;search term&gt;&gt;</td><td>Kill all ClientHandler/Client in pool for the target which has the search term n toString (check client-handler-pool-dump command for the format).</td></tr>
- * 
+ *
  * <tr><td>jvm</td><td>dumpJmapHisto file</td><td>Dump JMAP to file</td></tr>
  * <tr><td>jvm</td><td>dumpJmapHisto log</td><td>Dump JMAP to jdk log</td></tr>
  * <tr><td>jvm</td><td>dumpJStack file</td><td>Dump JStack to file</td></tr>
@@ -139,50 +138,51 @@ import org.quickserver.net.server.ClientIdentifier;
  * <tr><td>jvm</td><td>dumpHeap</td><td>Dump Heap to file</td></tr>
  *
  * <tr><td colspan=3>* = Take effect after a restart command.<br>
- *      value if set null then key will be set to <code>null</code>
- *     </td></tr>
+ * value if set null then key will be set to <code>null</code>
+ * </td></tr>
  * </table>
- * <br>Note: 
+ * <br>Note:
  * <ul>
- * <li>Stopping the QuickServer will not disconnect any client connect to it, since 
+ * <li>Stopping the QuickServer will not disconnect any client connect to it, since
  * client connections are handled by different thread.
- * <li><code>restart</code> and <code>start</code> response just indicate only 
- * if command was sent. Do check the state of the target using 
+ * <li><code>restart</code> and <code>start</code> response just indicate only
+ * if command was sent. Do check the state of the target using
  * <code>running</code> command to see if server was started successful.
  * <li>Demo code examples\EchoServer shows the use of QsAdminServer to control itself.
  * </ul>
  * Eg: <br>
  * <BLOCKQUOTE>
- *  noClient server<br>
- *  noClient self<br>
- *  get server maxClient<br>
- *  set server maxClient 10
+ * noClient server<br>
+ * noClient self<br>
+ * get server maxClient<br>
+ * set server maxClient 10
  * </BLOCKQUOTE>
  * </p>
+ *
  * @since 1.1
  */
 public class CommandHandler implements ClientCommandHandler, ClientEventHandler {
 	private static Logger logger = Logger.getLogger(CommandHandler.class.getName());
-	
+
 	private static Format formatter = new SimpleDateFormat("yyyyMMdd_HHmmss");
-	
+
 	private static File getFile(String name, String ext) {
 		StringBuilder sb = new StringBuilder("./");
-		
+
 		File logDir = new File("./log/");
-		if(logDir.exists()==false) {
+		if (logDir.exists() == false) {
 			logDir.mkdirs();
 		}
-		if(logDir.canWrite()) {
+		if (logDir.canWrite()) {
 			sb.append("log/");
 		}
-		
-		sb.append(name);		
+
+		sb.append(name);
 		sb.append("_");
 		sb.append(formatter.format(new Date()));
-		
+
 		sb.append(ext);
-		
+
 		return new File(sb.toString());
 	}
 
@@ -192,7 +192,7 @@ public class CommandHandler implements ClientCommandHandler, ClientEventHandler 
 
 	//-- ClientEventHandler
 	public void gotConnected(ClientHandler handler)
-		throws SocketTimeoutException, IOException {
+			throws SocketTimeoutException, IOException {
 		logger.log(Level.FINE, "Connection opened : {0}", handler.getHostAddress());
 
 		handler.sendClientMsg("+OK +++++++++++++++++++++++++++++++++");
@@ -200,19 +200,20 @@ public class CommandHandler implements ClientCommandHandler, ClientEventHandler 
 		handler.sendClientMsg("+OK +++++++++++++++++++++++++++++++++");
 
 		//v.2
-		if(plugin==null || runtime==null) {
+		if (plugin == null || runtime == null) {
 			plugin = (CommandPlugin)
-				handler.getServer().getStoreObjects()[1];
+					handler.getServer().getStoreObjects()[1];
 			//v1.3.2
 			runtime = Runtime.getRuntime();
 		}
 	}
 
-	public void lostConnection(ClientHandler handler) 
+	public void lostConnection(ClientHandler handler)
 			throws IOException {
 		logger.log(Level.FINE, "Connection lost : {0}", handler.getHostAddress());
 	}
-	public void closingConnection(ClientHandler handler) 
+
+	public void closingConnection(ClientHandler handler)
 			throws IOException {
 		logger.log(Level.FINE, "Connection closing : {0}", handler.getHostAddress());
 	}
@@ -220,48 +221,48 @@ public class CommandHandler implements ClientCommandHandler, ClientEventHandler 
 
 	public void handleCommand(ClientHandler handler, String command)
 			throws SocketTimeoutException, IOException {
-		if(command==null || command.trim().equals("")) {
+		if (command == null || command.trim().equals("")) {
 			handler.sendClientMsg("-ERR No command");
 			return;
 		}
-		
+
 		//v1.2 - plugin
-		if( plugin != null && plugin.handleCommand(handler,command) ) {
+		if (plugin != null && plugin.handleCommand(handler, command)) {
 			logger.fine("Handled by plugin.");
 			return;
 		}
 		QSAdminServer adminServer = (QSAdminServer)
-			handler.getServer().getStoreObjects()[2];
+				handler.getServer().getStoreObjects()[2];
 
-		StringTokenizer st = new StringTokenizer(command," ");
+		StringTokenizer st = new StringTokenizer(command, " ");
 		String cmd = null;
 		cmd = st.nextToken().toLowerCase();
 		String param[] = new String[st.countTokens()];
-		
-		QuickServer target = null;		
-		for (int i=0;st.hasMoreTokens();i++) {
+
+		QuickServer target = null;
+		for (int i = 0; st.hasMoreTokens(); i++) {
 			param[i] = st.nextToken();
 		}
 
-		if(command.equals("start console")) { /*v1.4.5*/
+		if (command.equals("start console")) { /*v1.4.5*/
 			QSAdminShell.getInstance(
-				(QuickServer) handler.getServer().getStoreObjects()[0], null);
+					(QuickServer) handler.getServer().getStoreObjects()[0], null);
 			handler.sendClientMsg("+OK QSAdminShell is started.");
 			return;
-		} else if(command.equals("stop console")) { /*v1.4.5*/
+		} else if (command.equals("stop console")) { /*v1.4.5*/
 			QSAdminShell shell = QSAdminShell.getInstance(null, null);
-			if(shell!=null) {
+			if (shell != null) {
 				try {
 					shell.stopShell();
-				} catch(Exception err) {
-					handler.sendClientMsg("-ERR Error stopping QSAdminShell: "+err);
-				}				
+				} catch (Exception err) {
+					handler.sendClientMsg("-ERR Error stopping QSAdminShell: " + err);
+				}
 				handler.sendClientMsg("+OK QSAdminShell is stopped.");
 			} else {
 				handler.sendClientMsg("-ERR QSAdminShell is not running.");
 			}
 			return;
-		} else if(cmd.equals("jvm")) {/*2.0.0*/
+		} else if (cmd.equals("jvm")) {/*2.0.0*/
 			/*
 				jvm dumpHeap
 				jvm dumpJmapHisto file
@@ -271,320 +272,320 @@ public class CommandHandler implements ClientCommandHandler, ClientEventHandler 
 				jvm dumpJStack file
 				jvm dumpJStack log
 			 */
-			
-			if(param.length==0) {
-				handler.sendClientMsg("-ERR "+"Use jvm help");
+
+			if (param.length == 0) {
+				handler.sendClientMsg("-ERR " + "Use jvm help");
 				return;
-			}			
-			
-			if(param[0].equals("dumpHeap")) {
+			}
+
+			if (param[0].equals("dumpHeap")) {
 				File file = getFile("dumpHeap", ".bin");
 				JvmUtil.dumpHeap(file.getAbsolutePath(), true);
-				handler.sendClientMsg("+OK File "+file.getAbsolutePath());
-			} else if(param[0].equals("dumpJmapHisto")) {
-				if(param.length < 2)/*dumpJmapHisto file*/ {
-					handler.sendClientMsg("-ERR "+"insufficient param");
+				handler.sendClientMsg("+OK File " + file.getAbsolutePath());
+			} else if (param[0].equals("dumpJmapHisto")) {
+				if (param.length < 2)/*dumpJmapHisto file*/ {
+					handler.sendClientMsg("-ERR " + "insufficient param");
 					return;
 				}
-				
-				if(param[1].equals("file")) {
+
+				if (param[1].equals("file")) {
 					File file = getFile("dumpJmapHisto", ".txt");
-					
-					handler.sendClientMsg("+OK info follows");					
+
+					handler.sendClientMsg("+OK info follows");
 					handler.sendClientMsg("Starting.. ");
-					
+
 					JvmUtil.dumpJmapHisto(file.getAbsolutePath());
-					
-					handler.sendClientMsg("Done - File "+file.getAbsolutePath());					
+
+					handler.sendClientMsg("Done - File " + file.getAbsolutePath());
 					handler.sendClientMsg(".");
-				} else if(param[1].equals("log")) {
-					handler.sendClientMsg("+OK info follows");					
+				} else if (param[1].equals("log")) {
+					handler.sendClientMsg("+OK info follows");
 					handler.sendClientMsg("Starting.. ");
-					
+
 					JvmUtil.dumpJmapHistoToLog();
-					
+
 					handler.sendClientMsg("Done - Dumped to jdk log file");
 					handler.sendClientMsg(".");
 				} else {
-					handler.sendClientMsg("-ERR "+"bad param");
+					handler.sendClientMsg("-ERR " + "bad param");
 					return;
 				}
-			} else if(param[0].equals("threadDump")) {
-				if(param.length < 2)/*threadDump file*/ {
-					handler.sendClientMsg("-ERR "+"insufficient param");
+			} else if (param[0].equals("threadDump")) {
+				if (param.length < 2)/*threadDump file*/ {
+					handler.sendClientMsg("-ERR " + "insufficient param");
 					return;
 				}
-				
-				if(param[1].equals("file")) {
+
+				if (param[1].equals("file")) {
 					File file = getFile("threadDump", ".txt");
-					
-					handler.sendClientMsg("+OK info follows");					
+
+					handler.sendClientMsg("+OK info follows");
 					handler.sendClientMsg("Starting.. ");
-					
+
 					JvmUtil.threadDump(file.getAbsolutePath());
-					
-					handler.sendClientMsg("Done - File "+file.getAbsolutePath());
+
+					handler.sendClientMsg("Done - File " + file.getAbsolutePath());
 					handler.sendClientMsg(".");
-				} else if(param[1].equals("log")) {
-					handler.sendClientMsg("+OK info follows");					
+				} else if (param[1].equals("log")) {
+					handler.sendClientMsg("+OK info follows");
 					handler.sendClientMsg("Starting.. ");
-					
+
 					JvmUtil.threadDumpToLog();
-					
+
 					handler.sendClientMsg("Done - Dumped to jdk log file");
 					handler.sendClientMsg(".");
 				} else {
-					handler.sendClientMsg("-ERR "+"bad param");
+					handler.sendClientMsg("-ERR " + "bad param");
 					return;
 				}
-			} else if(param[0].equals("dumpJStack")) {
-				if(param.length < 2)/*dumpJStack file*/ {
-					handler.sendClientMsg("-ERR "+"insufficient param");
+			} else if (param[0].equals("dumpJStack")) {
+				if (param.length < 2)/*dumpJStack file*/ {
+					handler.sendClientMsg("-ERR " + "insufficient param");
 					return;
 				}
-				
-				if(param[1].equals("file")) {
+
+				if (param[1].equals("file")) {
 					File file = getFile("dumpJStack", ".txt");
-					
-					handler.sendClientMsg("+OK info follows");					
+
+					handler.sendClientMsg("+OK info follows");
 					handler.sendClientMsg("Starting.. ");
-					
+
 					JvmUtil.dumpJStack(file.getAbsolutePath());
-					
-					handler.sendClientMsg("Done - File "+file.getAbsolutePath());
+
+					handler.sendClientMsg("Done - File " + file.getAbsolutePath());
 					handler.sendClientMsg(".");
-				} else if(param[1].equals("log")) {
-					handler.sendClientMsg("+OK info follows");					
+				} else if (param[1].equals("log")) {
+					handler.sendClientMsg("+OK info follows");
 					handler.sendClientMsg("Starting.. ");
-					
+
 					JvmUtil.dumpJStackToLog();
-					
+
 					handler.sendClientMsg("Done - Dumped to jdk log file");
 					handler.sendClientMsg(".");
 				} else {
-					handler.sendClientMsg("-ERR "+"bad param");
+					handler.sendClientMsg("-ERR " + "bad param");
 					return;
 				}
-			} else if(param[0].equals("help")) {
+			} else if (param[0].equals("help")) {
 				handler.sendClientMsg("+OK info follows");
-				
+
 				handler.sendClientMsg("jvm dumpJmapHisto file");
 				handler.sendClientMsg("jvm dumpJStack file");
-				
+
 				handler.sendClientMsg(" ");
-				
+
 				handler.sendClientMsg("jvm threadDump file");
 				handler.sendClientMsg("jvm dumpHeap");
-				
+
 				handler.sendClientMsg(" ");
-				
-				handler.sendClientMsg("jvm threadDump log");				
-				handler.sendClientMsg("jvm dumpJmapHisto log");				
+
+				handler.sendClientMsg("jvm threadDump log");
+				handler.sendClientMsg("jvm dumpJmapHisto log");
 				handler.sendClientMsg("jvm dumpJStack log");
-				
+
 				handler.sendClientMsg(".");
-				return;				
-			} else {				
-				handler.sendClientMsg("-ERR "+"bad param use jvm help");
+				return;
+			} else {
+				handler.sendClientMsg("-ERR " + "bad param use jvm help");
 			}
 			return;
 		}
 
-		if(param.length > 0) {
-			if( param[0].equals("server") )
+		if (param.length > 0) {
+			if (param[0].equals("server"))
 				target = (QuickServer) handler.getServer().getStoreObjects()[0];
-			else if( param[0].equals("self") )
+			else if (param[0].equals("self"))
 				target = handler.getServer();
 			else {
-				handler.sendClientMsg("-ERR Bad <<target>> : "+param[0]);
+				handler.sendClientMsg("-ERR Bad <<target>> : " + param[0]);
 				return;
 			}
 		}
- 
-		if(cmd.equals("help")) {
-			handler.sendClientMsg("+OK info follows"+"\r\n"+
-				"Refer Api Docs for org.quickserver.net.qsadmin.CommandHandler");
+
+		if (cmd.equals("help")) {
+			handler.sendClientMsg("+OK info follows" + "\r\n" +
+					"Refer Api Docs for org.quickserver.net.qsadmin.CommandHandler");
 			handler.sendClientMsg(".");
 			return;
-		} else if(cmd.equals("quit")) {
+		} else if (cmd.equals("quit")) {
 			handler.sendClientMsg("+OK Bye ;-)");
 			handler.closeConnection();
 			return;
-		} else if(cmd.equals("shutdown")) {
-			try	{
-				QuickServer controlServer = 
-					(QuickServer) handler.getServer().getStoreObjects()[0];
-				if(controlServer!=null && controlServer.isClosed()==false) {
+		} else if (cmd.equals("shutdown")) {
+			try {
+				QuickServer controlServer =
+						(QuickServer) handler.getServer().getStoreObjects()[0];
+				if (controlServer != null && controlServer.isClosed() == false) {
 					controlServer.stopServer();
 				}
-				if(handler.getServer()!=null && handler.getServer().isClosed()==false) {
+				if (handler.getServer() != null && handler.getServer().isClosed() == false) {
 					handler.getServer().stopServer();
 				}
 
 				QSAdminShell shell = QSAdminShell.getInstance(null, null);
-				if(shell!=null) {
+				if (shell != null) {
 					try {
 						shell.stopShell();
-					} catch(Exception err) {
-						logger.warning("Error stoping shell: "+err);
-					}				
+					} catch (Exception err) {
+						logger.warning("Error stoping shell: " + err);
+					}
 				}
 
 				handler.sendClientMsg("+OK Done");
 			} catch (AppException e) {
-				handler.sendClientMsg("-ERR "+e);
+				handler.sendClientMsg("-ERR " + e);
 			}
 			return;
-		} else if(cmd.equals("version")) {
-			handler.sendClientMsg("+OK "+QuickServer.getVersion());
+		} else if (cmd.equals("version")) {
+			handler.sendClientMsg("+OK " + QuickServer.getVersion());
 			return;
-		} else if(cmd.equals("kill") || cmd.equals("exit")) /*v1.3,v1.3.2*/{
+		} else if (cmd.equals("kill") || cmd.equals("exit")) /*v1.3,v1.3.2*/ {
 			StringBuilder errBuf = new StringBuilder();
-			QuickServer controlServer = 
-				(QuickServer) handler.getServer().getStoreObjects()[0];
+			QuickServer controlServer =
+					(QuickServer) handler.getServer().getStoreObjects()[0];
 			int exitCode = 0;
 
-			if(param.length!=0) {
+			if (param.length != 0) {
 				try {
 					exitCode = Integer.parseInt(param[0]);
-				} catch(Exception nfe) {/*ignore*/}				
+				} catch (Exception nfe) {/*ignore*/}
 			}
 
-			try	{				
-				if(controlServer!=null && controlServer.isClosed()==false) {
+			try {
+				if (controlServer != null && controlServer.isClosed() == false) {
 					try {
 						controlServer.stopServer();
-					} catch(AppException ae) {
+					} catch (AppException ae) {
 						errBuf.append(ae.toString());
 					}
 				}
-				if(handler.getServer()!=null  && handler.getServer().isClosed()==false) {
+				if (handler.getServer() != null && handler.getServer().isClosed() == false) {
 					try {
 						handler.getServer().stopServer();
-					} catch(AppException ae) {
+					} catch (AppException ae) {
 						errBuf.append(ae.toString());
-					}					
+					}
 				}
 
 				QSAdminShell shell = QSAdminShell.getInstance(null, null);
-				if(shell!=null) {
+				if (shell != null) {
 					try {
 						shell.stopShell();
-					} catch(Exception err) {
+					} catch (Exception err) {
 						errBuf.append(err.toString());
-					}				
+					}
 				}
 
-				if(errBuf.length()==0)
+				if (errBuf.length() == 0)
 					handler.sendClientMsg("+OK Done");
 				else
-					handler.sendClientMsg("+OK Done, Errors: "+errBuf.toString());
+					handler.sendClientMsg("+OK Done, Errors: " + errBuf.toString());
 			} catch (Exception e) {
-				handler.sendClientMsg("-ERR Exception : "+e+"\r\n"+errBuf.toString());
-				if(exitCode==0) exitCode = 1;
+				handler.sendClientMsg("-ERR Exception : " + e + "\r\n" + errBuf.toString());
+				if (exitCode == 0) exitCode = 1;
 			} finally {
 				try {
-					if(controlServer!=null)
+					if (controlServer != null)
 						controlServer.closeAllPools();
-					if(handler.getServer()!=null)
+					if (handler.getServer() != null)
 						handler.getServer().closeAllPools();
-				} catch(Exception er) {
-					logger.warning("Error closing pools: "+er);
+				} catch (Exception er) {
+					logger.warning("Error closing pools: " + er);
 				}
 				System.exit(exitCode);
 			}
 			return;
-		} else if(cmd.equals("memoryinfo")) { /*v1.3.2*/
+		} else if (cmd.equals("memoryinfo")) { /*v1.3.2*/
 			//Padding : Total:Used:Max
 			float totalMemory = (float) runtime.totalMemory();
-			float usedMemory = totalMemory - (float) runtime.freeMemory();			        
+			float usedMemory = totalMemory - (float) runtime.freeMemory();
 			float maxMemory = (float) runtime.maxMemory();
-			handler.sendClientMsg("+OK "+totalMemory+":"+usedMemory+":"+maxMemory);
+			handler.sendClientMsg("+OK " + totalMemory + ":" + usedMemory + ":" + maxMemory);
 			return;
-		} else if(cmd.equals("systeminfo")) { /*v1.4.5*/
+		} else if (cmd.equals("systeminfo")) { /*v1.4.5*/
 			handler.sendClientMsg("+OK info follows");
-			handler.sendClientMsg(MyString.getSystemInfo(target.getVersion()));			
+			handler.sendClientMsg(MyString.getSystemInfo(target.getVersion()));
 			handler.sendClientMsg(".");
 			return;
-		} else if(param.length==0) {
-			handler.sendClientMsg("-ERR Bad Command or No Param : ->"+cmd+"<-");
+		} else if (param.length == 0) {
+			handler.sendClientMsg("-ERR Bad Command or No Param : ->" + cmd + "<-");
 			return;
 		}
-		
-		if(cmd.equals("start")) {
-			try	{
+
+		if (cmd.equals("start")) {
+			try {
 				target.startServer();
 				handler.sendClientMsg("+OK Server Started");
 			} catch (AppException e) {
-				handler.sendClientMsg("-ERR "+e);
+				handler.sendClientMsg("-ERR " + e);
 			}
 			return;
-		} else if(cmd.equals("stop")) {
-			try	{
+		} else if (cmd.equals("stop")) {
+			try {
 				target.stopServer();
 				handler.sendClientMsg("+OK Server Stopped");
 			} catch (AppException e) {
-				handler.sendClientMsg("-ERR "+e);
+				handler.sendClientMsg("-ERR " + e);
 			}
 			return;
-		} else if(cmd.equals("restart")) {
-			try	{
+		} else if (cmd.equals("restart")) {
+			try {
 				target.stopServer();
 				target.startServer();
 				handler.sendClientMsg("+OK Server Restarted");
 			} catch (AppException e) {
-				handler.sendClientMsg("-ERR "+e);
+				handler.sendClientMsg("-ERR " + e);
 			}
 			return;
-		} else if(cmd.equals("info")) {
+		} else if (cmd.equals("info")) {
 			handler.sendClientMsg("+OK info follows");
-			handler.sendClientMsg(""+target);
-			handler.sendClientMsg("Running : "+!target.isClosed());
-			handler.sendClientMsg("PID : "+QuickServer.getPID());
-			handler.sendClientMsg("Max Client Allowed  : "+target.getMaxConnection() );
-			handler.sendClientMsg("No Client Connected : "+target.getClientCount() );
-			if(target.isRunningSecure()==true) {
-				handler.sendClientMsg("Running in secure mode : "+
-					target.getSecure().getProtocol() );
+			handler.sendClientMsg("" + target);
+			handler.sendClientMsg("Running : " + !target.isClosed());
+			handler.sendClientMsg("PID : " + QuickServer.getPID());
+			handler.sendClientMsg("Max Client Allowed  : " + target.getMaxConnection());
+			handler.sendClientMsg("No Client Connected : " + target.getClientCount());
+			if (target.isRunningSecure() == true) {
+				handler.sendClientMsg("Running in secure mode : " +
+						target.getSecure().getProtocol());
 			} else {
 				handler.sendClientMsg("Running in non-secure mode");
 			}
-			handler.sendClientMsg("Server Mode : "+target.getBasicConfig().getServerMode());
-			handler.sendClientMsg("QuickServer v : "+QuickServer.getVersion());
-			handler.sendClientMsg("Uptime : "+target.getUptime());
+			handler.sendClientMsg("Server Mode : " + target.getBasicConfig().getServerMode());
+			handler.sendClientMsg("QuickServer v : " + QuickServer.getVersion());
+			handler.sendClientMsg("Uptime : " + target.getUptime());
 			handler.sendClientMsg(".");
 			return;
-		} else if(cmd.equals("noclient")) {
-			handler.sendClientMsg("+OK "+target.getClientCount() );
+		} else if (cmd.equals("noclient")) {
+			handler.sendClientMsg("+OK " + target.getClientCount());
 			return;
-		} else if(cmd.equals("running")) {
-			handler.sendClientMsg("+OK "+!target.isClosed() );
+		} else if (cmd.equals("running")) {
+			handler.sendClientMsg("+OK " + !target.isClosed());
 			return;
-		} else if(cmd.equals("suspendservice")) {
-			handler.sendClientMsg("+OK "+target.suspendService() );
+		} else if (cmd.equals("suspendservice")) {
+			handler.sendClientMsg("+OK " + target.suspendService());
 			return;
-		} else if(cmd.equals("resumeservice")) {
-			handler.sendClientMsg("+OK "+target.resumeService() );
+		} else if (cmd.equals("resumeservice")) {
+			handler.sendClientMsg("+OK " + target.resumeService());
 			return;
-		} else if(cmd.equals("client-thread-pool-info")) /*v1.3.2*/{
+		} else if (cmd.equals("client-thread-pool-info")) /*v1.3.2*/ {
 			temp.setLength(0);//used:idle
-			if(PoolHelper.isPoolOpen(target.getClientPool().getObjectPool())==true) {
+			if (PoolHelper.isPoolOpen(target.getClientPool().getObjectPool()) == true) {
 				temp.append(target.getClientPool().getNumActive());
 				temp.append(':');
 				temp.append(target.getClientPool().getNumIdle());
 			} else {
 				temp.append("0:0");
 			}
-			handler.sendClientMsg("+OK "+temp.toString() );
+			handler.sendClientMsg("+OK " + temp.toString());
 			return;
-		} else if(cmd.equals("client-thread-pool-dump")) /*v1.4.5*/{
-			if(PoolHelper.isPoolOpen(target.getClientPool().getObjectPool())==true) {
+		} else if (cmd.equals("client-thread-pool-dump")) /*v1.4.5*/ {
+			if (PoolHelper.isPoolOpen(target.getClientPool().getObjectPool()) == true) {
 				handler.sendClientMsg("+OK info follows");
 				ClientThread ct = null;
-				synchronized(target.getClientPool().getObjectToSynchronize()) {
+				synchronized (target.getClientPool().getObjectToSynchronize()) {
 					Iterator iterator = target.getClientPool().getAllClientThread();
-					while(iterator.hasNext()) {
-						ct = (ClientThread)iterator.next();
+					while (iterator.hasNext()) {
+						ct = (ClientThread) iterator.next();
 						handler.sendClientMsg(ct.toString());
 					}
 				}
@@ -593,21 +594,21 @@ public class CommandHandler implements ClientCommandHandler, ClientEventHandler 
 				handler.sendClientMsg("-ERR Pool Closed");
 			}
 			return;
-		} else if(cmd.equals("client-handler-pool-dump")) /*v1.4.6*/{
-			
+		} else if (cmd.equals("client-handler-pool-dump")) /*v1.4.6*/ {
+
 			ObjectPool objectPool = target.getClientHandlerPool();
 
-			if(PoolHelper.isPoolOpen(objectPool)==true) {
-				if(QSObjectPool.class.isInstance(objectPool)==false) {
+			if (PoolHelper.isPoolOpen(objectPool) == true) {
+				if (QSObjectPool.class.isInstance(objectPool) == false) {
 					handler.sendClientMsg("-ERR System Error!");
 				}
 
 				ClientIdentifier clientIdentifier = target.getClientIdentifier();
 				ClientHandler foundClientHandler = null;
-				synchronized(clientIdentifier.getObjectToSynchronize()) {	
+				synchronized (clientIdentifier.getObjectToSynchronize()) {
 					Iterator iterator = clientIdentifier.findAllClient();
 					handler.sendClientMsg("+OK info follows");
-					while(iterator.hasNext()) {
+					while (iterator.hasNext()) {
 						foundClientHandler = (ClientHandler) iterator.next();
 						handler.sendClientMsg(foundClientHandler.info());
 					}
@@ -617,14 +618,14 @@ public class CommandHandler implements ClientCommandHandler, ClientEventHandler 
 				handler.sendClientMsg("-ERR Pool Closed");
 			}
 			return;
-		} else if(cmd.equals("client-data-pool-info")) /*v1.3.2*/{
+		} else if (cmd.equals("client-data-pool-info")) /*v1.3.2*/ {
 			temp.setLength(0);//used:idle
-			if(target.getClientDataPool()!=null) {
-				if(PoolHelper.isPoolOpen(target.getClientDataPool())==true) {
+			if (target.getClientDataPool() != null) {
+				if (PoolHelper.isPoolOpen(target.getClientDataPool()) == true) {
 					temp.append(target.getClientDataPool().getNumActive());
 					temp.append(':');
 					temp.append(target.getClientDataPool().getNumIdle());
-					handler.sendClientMsg("+OK "+temp.toString() );
+					handler.sendClientMsg("+OK " + temp.toString());
 				} else {
 					handler.sendClientMsg("-ERR Client Data Pool Closed");
 				}
@@ -632,14 +633,14 @@ public class CommandHandler implements ClientCommandHandler, ClientEventHandler 
 				handler.sendClientMsg("-ERR No Client Data Pool");
 			}
 			return;
-		} else if(cmd.equals("byte-buffer-pool-info")) /*v1.4.6*/{
+		} else if (cmd.equals("byte-buffer-pool-info")) /*v1.4.6*/ {
 			temp.setLength(0);//used:idle
-			if(target.getByteBufferPool()!=null) {
-				if(PoolHelper.isPoolOpen(target.getByteBufferPool())==true) {
+			if (target.getByteBufferPool() != null) {
+				if (PoolHelper.isPoolOpen(target.getByteBufferPool()) == true) {
 					temp.append(target.getByteBufferPool().getNumActive());
 					temp.append(':');
 					temp.append(target.getByteBufferPool().getNumIdle());
-					handler.sendClientMsg("+OK "+temp.toString() );
+					handler.sendClientMsg("+OK " + temp.toString());
 				} else {
 					handler.sendClientMsg("-ERR ByteBuffer Pool Closed");
 				}
@@ -647,11 +648,11 @@ public class CommandHandler implements ClientCommandHandler, ClientEventHandler 
 				handler.sendClientMsg("-ERR No ByteBuffer Pool");
 			}
 			return;
-		} else if(cmd.equals("all-pool-info")) /*v1.4.5*/{
+		} else if (cmd.equals("all-pool-info")) /*v1.4.5*/ {
 			handler.sendClientMsg("+OK info follows");
 			temp.setLength(0);//used:idle
-			
-			if(PoolHelper.isPoolOpen(target.getClientPool().getObjectPool())==true) {
+
+			if (PoolHelper.isPoolOpen(target.getClientPool().getObjectPool()) == true) {
 				temp.append("Client Thread Pool - ");
 				temp.append("Num Active: ");
 				temp.append(target.getClientPool().getNumActive());
@@ -660,14 +661,14 @@ public class CommandHandler implements ClientCommandHandler, ClientEventHandler 
 				temp.append(", Max Idle: ");
 				temp.append(target.getClientPool().getPoolConfig().getMaxIdle());
 				temp.append(", Max Active: ");
-				temp.append(target.getClientPool().getPoolConfig().getMaxActive());				
+				temp.append(target.getClientPool().getPoolConfig().getMaxActive());
 			} else {
 				temp.append("Byte Buffer Pool - Closed");
 			}
 			handler.sendClientMsg(temp.toString());
 			temp.setLength(0);
 
-			if(PoolHelper.isPoolOpen(target.getClientHandlerPool())==true) {
+			if (PoolHelper.isPoolOpen(target.getClientHandlerPool()) == true) {
 				temp.append("Client Handler Pool - ");
 				temp.append("Num Active: ");
 				temp.append(target.getClientHandlerPool().getNumActive());
@@ -683,8 +684,8 @@ public class CommandHandler implements ClientCommandHandler, ClientEventHandler 
 			handler.sendClientMsg(temp.toString());
 			temp.setLength(0);
 
-			if(target.getByteBufferPool()!=null) {
-				if(PoolHelper.isPoolOpen(target.getByteBufferPool())==true) {
+			if (target.getByteBufferPool() != null) {
+				if (PoolHelper.isPoolOpen(target.getByteBufferPool()) == true) {
 					temp.append("ByteBuffer Pool - ");
 					temp.append("Num Active: ");
 					temp.append(target.getByteBufferPool().getNumActive());
@@ -703,13 +704,13 @@ public class CommandHandler implements ClientCommandHandler, ClientEventHandler 
 			handler.sendClientMsg(temp.toString());
 			temp.setLength(0);
 
-			if(target.getClientDataPool()!=null) {
-				if(PoolHelper.isPoolOpen(target.getClientDataPool())==true) {
+			if (target.getClientDataPool() != null) {
+				if (PoolHelper.isPoolOpen(target.getClientDataPool()) == true) {
 					temp.append("Client Data Pool - ");
 					temp.append("Num Active: ");
 					temp.append(target.getClientDataPool().getNumActive());
 					temp.append(", Num Idle: ");
-					temp.append(target.getClientDataPool().getNumIdle());				
+					temp.append(target.getClientDataPool().getNumIdle());
 					temp.append(", Max Idle: ");
 					temp.append(target.getBasicConfig().getObjectPoolConfig().getClientDataObjectPoolConfig().getMaxIdle());
 					temp.append(", Max Active: ");
@@ -721,297 +722,297 @@ public class CommandHandler implements ClientCommandHandler, ClientEventHandler 
 				temp.append("Client Data Pool - Not Used");
 			}
 			handler.sendClientMsg(temp.toString());
-			temp.setLength(0);			
+			temp.setLength(0);
 
 			handler.sendClientMsg(".");
 			return;
-		} else if(cmd.equals("set")) {
-			if(param.length < 3)/*target,key,value*/ {
-				handler.sendClientMsg("-ERR "+"insufficient param");
+		} else if (cmd.equals("set")) {
+			if (param.length < 3)/*target,key,value*/ {
+				handler.sendClientMsg("-ERR " + "insufficient param");
 				return;
 			}
-			if(param[2].equals("null"))
-				param[2]=null;
-			try	{
-				if(param[1].equals("maxClient")) {
+			if (param[2].equals("null"))
+				param[2] = null;
+			try {
+				if (param[1].equals("maxClient")) {
 					long no = Long.parseLong(param[2]);
 					target.setMaxConnection(no);
-				} else if(param[1].equals("maxClientMsg")) {
+				} else if (param[1].equals("maxClientMsg")) {
 					target.setMaxConnectionMsg(param[2]);
-				} else if(param[1].equals("port")) {
+				} else if (param[1].equals("port")) {
 					long no = Long.parseLong(param[2]);
-					target.setPort((int)no);
-				} else if(param[1].equals("port")) {
+					target.setPort((int) no);
+				} else if (param[1].equals("port")) {
 					long no = Long.parseLong(param[2]);
-					target.setPort((int)no);
-				} else if(param[1].equals("maxAuthTry")) {
+					target.setPort((int) no);
+				} else if (param[1].equals("maxAuthTry")) {
 					int no = Integer.parseInt(param[2]);
 					target.setMaxAuthTry(no);
-				} else if(param[1].equals("maxAuthTryMsg")) {
+				} else if (param[1].equals("maxAuthTryMsg")) {
 					target.setMaxAuthTryMsg(param[2]);
-				} else if(param[1].equals("clientEventHandler")) { /*v1.4.6*/
+				} else if (param[1].equals("clientEventHandler")) { /*v1.4.6*/
 					target.setClientEventHandler(param[2]);
-				} else if(param[1].equals("clientCommandHandler")) {
+				} else if (param[1].equals("clientCommandHandler")) {
 					target.setClientCommandHandler(param[2]);
-				} else if(param[1].equals("clientWriteHandler")) { /*v1.4.6*/
+				} else if (param[1].equals("clientWriteHandler")) { /*v1.4.6*/
 					target.setClientWriteHandler(param[2]);
-				} else if(param[1].equals("clientObjectHandler")) {
+				} else if (param[1].equals("clientObjectHandler")) {
 					target.setClientObjectHandler(param[2]); /*v1.3*/
-				} else if(param[1].equals("clientAuthenticationHandler")) {
+				} else if (param[1].equals("clientAuthenticationHandler")) {
 					target.setClientAuthenticationHandler(param[2]);
-				} else if(param[1].equals("clientData")) {
+				} else if (param[1].equals("clientData")) {
 					target.setClientData(param[2]);
-				} else if(param[1].equals("clientExtendedEventHandler")) { /*v1.4.6*/
+				} else if (param[1].equals("clientExtendedEventHandler")) { /*v1.4.6*/
 					target.setClientExtendedEventHandler(param[2]);
-				} else if(param[1].equals("timeout")) {
+				} else if (param[1].equals("timeout")) {
 					long no = Long.parseLong(param[2]);
-					target.setTimeout((int)no);
-				} else if(param[1].equals("timeoutMsg")) {
+					target.setTimeout((int) no);
+				} else if (param[1].equals("timeoutMsg")) {
 					target.setTimeoutMsg(param[2]); /* v1.3 */
-				} else if(param[1].equals("plugin")) /* v1.2*/{
-					if(param[0].equals("self")) {
-						try {							
+				} else if (param[1].equals("plugin")) /* v1.2*/ {
+					if (param[0].equals("self")) {
+						try {
 							adminServer.setCommandPlugin(param[2]);
-						} catch(Exception e) {
-							handler.sendClientMsg("-ERR not set : "+e);
+						} catch (Exception e) {
+							handler.sendClientMsg("-ERR not set : " + e);
 							return;
 						}
 					} else {
-						handler.sendClientMsg("-ERR Bad target : "+param[0]+" self is only allowed.");
+						handler.sendClientMsg("-ERR Bad target : " + param[0] + " self is only allowed.");
 						return;
 					}
-				} else if(param[1].equals("consoleLoggingFormatter")) {
+				} else if (param[1].equals("consoleLoggingFormatter")) {
 					target.setConsoleLoggingFormatter(param[2]); /* v1.3 */
-				} else if(param[1].equals("consoleLoggingLevel")) { /* v1.3 */
-					if(param[2].endsWith("SEVERE"))
-						target.setConsoleLoggingLevel(Level.SEVERE); 
-					else if(param[2].endsWith("WARNING"))
-						target.setConsoleLoggingLevel(Level.WARNING); 
-					else if(param[2].endsWith("INFO"))
-						target.setConsoleLoggingLevel(Level.INFO); 
-					else if(param[2].endsWith("CONFIG"))
+				} else if (param[1].equals("consoleLoggingLevel")) { /* v1.3 */
+					if (param[2].endsWith("SEVERE"))
+						target.setConsoleLoggingLevel(Level.SEVERE);
+					else if (param[2].endsWith("WARNING"))
+						target.setConsoleLoggingLevel(Level.WARNING);
+					else if (param[2].endsWith("INFO"))
+						target.setConsoleLoggingLevel(Level.INFO);
+					else if (param[2].endsWith("CONFIG"))
 						target.setConsoleLoggingLevel(Level.CONFIG);
-					else if(param[2].endsWith("FINE"))
+					else if (param[2].endsWith("FINE"))
 						target.setConsoleLoggingLevel(Level.FINE);
-					else if(param[2].endsWith("FINER"))
-						target.setConsoleLoggingLevel(Level.FINER); 
-					else if(param[2].endsWith("FINEST"))
+					else if (param[2].endsWith("FINER"))
+						target.setConsoleLoggingLevel(Level.FINER);
+					else if (param[2].endsWith("FINEST"))
 						target.setConsoleLoggingLevel(Level.FINEST);
-					else if(param[2].endsWith("ALL"))
+					else if (param[2].endsWith("ALL"))
 						target.setConsoleLoggingLevel(Level.ALL);
-					else if(param[2].endsWith("OFF"))
+					else if (param[2].endsWith("OFF"))
 						target.setConsoleLoggingLevel(Level.OFF);
 					else {
-						handler.sendClientMsg("-ERR Bad Level "+param[2]);	
+						handler.sendClientMsg("-ERR Bad Level " + param[2]);
 						return;
 					}
-				} else if(param[1].equals("loggingLevel")) { /* v1.3.1 */
-					if(param[2].endsWith("SEVERE"))
-						target.setLoggingLevel(Level.SEVERE); 
-					else if(param[2].endsWith("WARNING"))
-						target.setLoggingLevel(Level.WARNING); 
-					else if(param[2].endsWith("INFO"))
-						target.setLoggingLevel(Level.INFO); 
-					else if(param[2].endsWith("CONFIG"))
+				} else if (param[1].equals("loggingLevel")) { /* v1.3.1 */
+					if (param[2].endsWith("SEVERE"))
+						target.setLoggingLevel(Level.SEVERE);
+					else if (param[2].endsWith("WARNING"))
+						target.setLoggingLevel(Level.WARNING);
+					else if (param[2].endsWith("INFO"))
+						target.setLoggingLevel(Level.INFO);
+					else if (param[2].endsWith("CONFIG"))
 						target.setLoggingLevel(Level.CONFIG);
-					else if(param[2].endsWith("FINE"))
+					else if (param[2].endsWith("FINE"))
 						target.setLoggingLevel(Level.FINE);
-					else if(param[2].endsWith("FINER"))
-						target.setLoggingLevel(Level.FINER); 
-					else if(param[2].endsWith("FINEST"))
+					else if (param[2].endsWith("FINER"))
+						target.setLoggingLevel(Level.FINER);
+					else if (param[2].endsWith("FINEST"))
 						target.setLoggingLevel(Level.FINEST);
-					else if(param[2].endsWith("ALL"))
+					else if (param[2].endsWith("ALL"))
 						target.setLoggingLevel(Level.ALL);
-					else if(param[2].endsWith("OFF"))
+					else if (param[2].endsWith("OFF"))
 						target.setLoggingLevel(Level.OFF);
 					else {
-						handler.sendClientMsg("-ERR Bad Level "+param[2]);	
+						handler.sendClientMsg("-ERR Bad Level " + param[2]);
 						return;
 					}
-				} else if(param[1].equals("communicationLogging")) {
-					if(param[2].equals("true"))/* v1.3.2 */
+				} else if (param[1].equals("communicationLogging")) {
+					if (param[2].equals("true"))/* v1.3.2 */
 						target.setCommunicationLogging(true);
 					else
 						target.setCommunicationLogging(false);
-				} else if(param[1].equals("objectPoolConfig-maxActive")) {
+				} else if (param[1].equals("objectPoolConfig-maxActive")) {
 					int no = Integer.parseInt(param[2]);
 					target.getConfig().getObjectPoolConfig().setMaxActive(no);
-				} else if(param[1].equals("objectPoolConfig-maxIdle")) {
+				} else if (param[1].equals("objectPoolConfig-maxIdle")) {
 					int no = Integer.parseInt(param[2]);
 					target.getConfig().getObjectPoolConfig().setMaxIdle(no);
-				} else if(param[1].equals("objectPoolConfig-initSize")) {
+				} else if (param[1].equals("objectPoolConfig-initSize")) {
 					int no = Integer.parseInt(param[2]);
 					target.getConfig().getObjectPoolConfig().setInitSize(no);
 				} else {
-					handler.sendClientMsg("-ERR Bad Set Key : "+param[1]);	
+					handler.sendClientMsg("-ERR Bad Set Key : " + param[1]);
 					return;
 				}
-				handler.sendClientMsg("+OK Set");				
-			} catch(Exception e) {
-				handler.sendClientMsg("-ERR "+e);
+				handler.sendClientMsg("+OK Set");
+			} catch (Exception e) {
+				handler.sendClientMsg("-ERR " + e);
 			}
 			return;
-		} else if(cmd.equals("get")) {
-			if(param.length < 2)/*target,key*/ {
-				handler.sendClientMsg("-ERR "+"insufficient param");
+		} else if (cmd.equals("get")) {
+			if (param.length < 2)/*target,key*/ {
+				handler.sendClientMsg("-ERR " + "insufficient param");
 				return;
 			}
-			try	{
-				if(param[1].equals("maxClient")) {
+			try {
+				if (param[1].equals("maxClient")) {
 					long no = target.getMaxConnection();
-					handler.sendClientMsg("+OK "+no);
-				} else if(param[1].equals("maxClientMsg")) {
+					handler.sendClientMsg("+OK " + no);
+				} else if (param[1].equals("maxClientMsg")) {
 					String msg = target.getMaxConnectionMsg();
 					msg = MyString.replaceAll(msg, "\n", "\\n");
-					handler.sendClientMsg("+OK "+msg);
-				} else if(param[1].equals("port")) {
+					handler.sendClientMsg("+OK " + msg);
+				} else if (param[1].equals("port")) {
 					long no = target.getPort();
-					handler.sendClientMsg("+OK "+no);
-				} else if(param[1].equals("maxAuthTry")) {
+					handler.sendClientMsg("+OK " + no);
+				} else if (param[1].equals("maxAuthTry")) {
 					int no = target.getMaxAuthTry();
-					handler.sendClientMsg("+OK "+no);
-				} else if(param[1].equals("maxAuthTryMsg")) {
-					String msg=target.getMaxAuthTryMsg();
+					handler.sendClientMsg("+OK " + no);
+				} else if (param[1].equals("maxAuthTryMsg")) {
+					String msg = target.getMaxAuthTryMsg();
 					msg = MyString.replaceAll(msg, "\n", "\\n");
-					handler.sendClientMsg("+OK "+msg);
-				} else if(param[1].equals("clientEventHandler")) { /*v1.4.6*/
-					String msg=target.getClientEventHandler();
-					handler.sendClientMsg("+OK "+msg);
-				} else if(param[1].equals("clientCommandHandler")) {
-					String msg=target.getClientCommandHandler();
-					handler.sendClientMsg("+OK "+msg);
-				} else if(param[1].equals("clientWriteHandler")) { /*v1.4.6*/
-					String msg=target.getClientWriteHandler();
-					handler.sendClientMsg("+OK "+msg);
-				} else if(param[1].equals("clientObjectHandler")) {
-					String msg=target.getClientObjectHandler();
-					handler.sendClientMsg("+OK "+msg);
-				} else if(param[1].equals("clientAuthenticationHandler")) {
-					String msg=target.getClientAuthenticationHandler();
-					handler.sendClientMsg("+OK "+msg);
-				} else if(param[1].equals("clientData")) {
-					String msg=target.getClientData();
-					handler.sendClientMsg("+OK "+msg);
-				} else if(param[1].equals("clientExtendedEventHandler")) { /*v1.4.6*/
-					String msg=target.getClientExtendedEventHandler();
-					handler.sendClientMsg("+OK "+msg);
-				} else if(param[1].equals("timeout")) {
-					String msg=""+target.getTimeout();
-					handler.sendClientMsg("+OK "+msg);
-				} else if(param[1].equals("timeoutMsg")) {
-					String msg=""+target.getTimeoutMsg();
+					handler.sendClientMsg("+OK " + msg);
+				} else if (param[1].equals("clientEventHandler")) { /*v1.4.6*/
+					String msg = target.getClientEventHandler();
+					handler.sendClientMsg("+OK " + msg);
+				} else if (param[1].equals("clientCommandHandler")) {
+					String msg = target.getClientCommandHandler();
+					handler.sendClientMsg("+OK " + msg);
+				} else if (param[1].equals("clientWriteHandler")) { /*v1.4.6*/
+					String msg = target.getClientWriteHandler();
+					handler.sendClientMsg("+OK " + msg);
+				} else if (param[1].equals("clientObjectHandler")) {
+					String msg = target.getClientObjectHandler();
+					handler.sendClientMsg("+OK " + msg);
+				} else if (param[1].equals("clientAuthenticationHandler")) {
+					String msg = target.getClientAuthenticationHandler();
+					handler.sendClientMsg("+OK " + msg);
+				} else if (param[1].equals("clientData")) {
+					String msg = target.getClientData();
+					handler.sendClientMsg("+OK " + msg);
+				} else if (param[1].equals("clientExtendedEventHandler")) { /*v1.4.6*/
+					String msg = target.getClientExtendedEventHandler();
+					handler.sendClientMsg("+OK " + msg);
+				} else if (param[1].equals("timeout")) {
+					String msg = "" + target.getTimeout();
+					handler.sendClientMsg("+OK " + msg);
+				} else if (param[1].equals("timeoutMsg")) {
+					String msg = "" + target.getTimeoutMsg();
 					msg = MyString.replaceAll(msg, "\n", "\\n");
-					handler.sendClientMsg("+OK "+msg);
-				} else if(param[1].equals("plugin")) /* v1.2*/{
-					if(param[0].equals("self")) {
+					handler.sendClientMsg("+OK " + msg);
+				} else if (param[1].equals("plugin")) /* v1.2*/ {
+					if (param[0].equals("self")) {
 						String msg = adminServer.getCommandPlugin();
-						handler.sendClientMsg("+OK "+msg);			
+						handler.sendClientMsg("+OK " + msg);
 					} else {
-						handler.sendClientMsg("-ERR Bad target : "+param[0]+" self is only allowed.");
+						handler.sendClientMsg("-ERR Bad target : " + param[0] + " self is only allowed.");
 					}
-				} else if(param[1].equals("consoleLoggingFormatter")) {
-					String msg=""+target.getConsoleLoggingFormatter(); /* v1.3 */
-					handler.sendClientMsg("+OK "+msg);
-				} else if(param[1].equals("consoleLoggingLevel")) { /* v1.3 */
-					String msg=""+target.getConsoleLoggingLevel();
-					handler.sendClientMsg("+OK "+msg);
-				} else if(param[1].equals("serviceState")) {
-					int state=target.getServiceState(); /*v1.3*/
-					if(state==org.quickserver.net.Service.INIT)
+				} else if (param[1].equals("consoleLoggingFormatter")) {
+					String msg = "" + target.getConsoleLoggingFormatter(); /* v1.3 */
+					handler.sendClientMsg("+OK " + msg);
+				} else if (param[1].equals("consoleLoggingLevel")) { /* v1.3 */
+					String msg = "" + target.getConsoleLoggingLevel();
+					handler.sendClientMsg("+OK " + msg);
+				} else if (param[1].equals("serviceState")) {
+					int state = target.getServiceState(); /*v1.3*/
+					if (state == org.quickserver.net.Service.INIT)
 						handler.sendClientMsg("+OK INIT");
-					else if(state==org.quickserver.net.Service.RUNNING)
+					else if (state == org.quickserver.net.Service.RUNNING)
 						handler.sendClientMsg("+OK RUNNING");
-					else if(state==org.quickserver.net.Service.STOPPED)
+					else if (state == org.quickserver.net.Service.STOPPED)
 						handler.sendClientMsg("+OK STOPPED");
-					else if(state==org.quickserver.net.Service.SUSPENDED)
+					else if (state == org.quickserver.net.Service.SUSPENDED)
 						handler.sendClientMsg("+OK SUSPENDED");
 					else
 						handler.sendClientMsg("+OK UNKNOWN");
-				} else if(param[1].equals("communicationLogging")) {
-					String msg=""+target.getCommunicationLogging();
-					handler.sendClientMsg("+OK "+msg);
-				} else if(param[1].equals("objectPoolConfig-maxActive")) {
-					String msg=""+target.getConfig().getObjectPoolConfig().getMaxActive();
-					handler.sendClientMsg("+OK "+msg);
-				} else if(param[1].equals("objectPoolConfig-maxIdle")) {
-					String msg=""+target.getConfig().getObjectPoolConfig().getMaxIdle();
-					handler.sendClientMsg("+OK "+msg);
-				} else if(param[1].equals("objectPoolConfig-initSize")) {
-					String msg=""+target.getConfig().getObjectPoolConfig().getInitSize();
-					handler.sendClientMsg("+OK "+msg);
+				} else if (param[1].equals("communicationLogging")) {
+					String msg = "" + target.getCommunicationLogging();
+					handler.sendClientMsg("+OK " + msg);
+				} else if (param[1].equals("objectPoolConfig-maxActive")) {
+					String msg = "" + target.getConfig().getObjectPoolConfig().getMaxActive();
+					handler.sendClientMsg("+OK " + msg);
+				} else if (param[1].equals("objectPoolConfig-maxIdle")) {
+					String msg = "" + target.getConfig().getObjectPoolConfig().getMaxIdle();
+					handler.sendClientMsg("+OK " + msg);
+				} else if (param[1].equals("objectPoolConfig-initSize")) {
+					String msg = "" + target.getConfig().getObjectPoolConfig().getInitSize();
+					handler.sendClientMsg("+OK " + msg);
 				} else {
-					handler.sendClientMsg("-ERR Bad Get Key : "+param[1]);	
-				}			
-			} catch(Exception e) {
-				handler.sendClientMsg("-ERR "+e);
+					handler.sendClientMsg("-ERR Bad Get Key : " + param[1]);
+				}
+			} catch (Exception e) {
+				handler.sendClientMsg("-ERR " + e);
 			}
 			return;
-		} else if(cmd.equals("kill-clients-all")) /*v2.0.0*/{
-			
+		} else if (cmd.equals("kill-clients-all")) /*v2.0.0*/ {
+
 			ObjectPool objectPool = target.getClientHandlerPool();
 
-			if(PoolHelper.isPoolOpen(objectPool)==true) {
-				if(QSObjectPool.class.isInstance(objectPool)==false) {
+			if (PoolHelper.isPoolOpen(objectPool) == true) {
+				if (QSObjectPool.class.isInstance(objectPool) == false) {
 					handler.sendClientMsg("-ERR System Error!");
 				}
 
 				ClientIdentifier clientIdentifier = target.getClientIdentifier();
 				ClientHandler foundClientHandler = null;
-				synchronized(clientIdentifier.getObjectToSynchronize()) {	
+				synchronized (clientIdentifier.getObjectToSynchronize()) {
 					Iterator iterator = clientIdentifier.findAllClient();
 					handler.sendClientMsg("+OK closing");
 					int count = 0;
 					int found = 0;
-					while(iterator.hasNext()) {
+					while (iterator.hasNext()) {
 						foundClientHandler = (ClientHandler) iterator.next();
 						found++;
-						if(foundClientHandler.isClosed()==false) {
+						if (foundClientHandler.isClosed() == false) {
 							foundClientHandler.closeConnection();
-							count ++;
+							count++;
 						}
 					}
-					handler.sendClientMsg("Count Found: "+found);
-					handler.sendClientMsg("Count Closed: "+count);
+					handler.sendClientMsg("Count Found: " + found);
+					handler.sendClientMsg("Count Closed: " + count);
 				}
 				handler.sendClientMsg(".");
 			} else {
 				handler.sendClientMsg("-ERR Closing");
 			}
 			return;
-		} else if(cmd.equals("kill-client-with")) /*v2.0.0*/{
-			
-			if(param.length < 2)/*target,search*/ {
-				handler.sendClientMsg("-ERR "+"insufficient param");
+		} else if (cmd.equals("kill-client-with")) /*v2.0.0*/ {
+
+			if (param.length < 2)/*target,search*/ {
+				handler.sendClientMsg("-ERR " + "insufficient param");
 				return;
 			}
 			String search = param[1];
-			
+
 			ObjectPool objectPool = target.getClientHandlerPool();
 
-			if(PoolHelper.isPoolOpen(objectPool)==true) {
-				if(QSObjectPool.class.isInstance(objectPool)==false) {
+			if (PoolHelper.isPoolOpen(objectPool) == true) {
+				if (QSObjectPool.class.isInstance(objectPool) == false) {
 					handler.sendClientMsg("-ERR System Error!");
 				}
 
 				ClientIdentifier clientIdentifier = target.getClientIdentifier();
 				ClientHandler foundClientHandler = null;
-				synchronized(clientIdentifier.getObjectToSynchronize()) {	
+				synchronized (clientIdentifier.getObjectToSynchronize()) {
 					Iterator iterator = clientIdentifier.findAllClient();
 					handler.sendClientMsg("+OK closing");
 					int count = 0;
 					int found = 0;
-					while(iterator.hasNext()) {
+					while (iterator.hasNext()) {
 						foundClientHandler = (ClientHandler) iterator.next();
-						if(foundClientHandler.toString().indexOf(search)!=-1) {
+						if (foundClientHandler.toString().indexOf(search) != -1) {
 							found++;
-							if(foundClientHandler.isClosed()==false) {
+							if (foundClientHandler.isClosed() == false) {
 								foundClientHandler.closeConnection();
-								count ++;
+								count++;
 							}
-						}						
+						}
 					}
-					handler.sendClientMsg("Count Found: "+found);
-					handler.sendClientMsg("Count Closed: "+count);
+					handler.sendClientMsg("Count Found: " + found);
+					handler.sendClientMsg("Count Closed: " + count);
 				}
 				handler.sendClientMsg(".");
 			} else {
@@ -1019,7 +1020,7 @@ public class CommandHandler implements ClientCommandHandler, ClientEventHandler 
 			}
 			return;
 		} else {
-			handler.sendClientMsg("-ERR Bad Command : "+cmd);
+			handler.sendClientMsg("-ERR Bad Command : " + cmd);
 		}
 		return;
 	}

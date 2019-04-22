@@ -3,8 +3,8 @@
  * Copyright (C) 2003-2005 QuickServer.org
  *
  * Use, modification, copying and distribution of this software is subject to
- * the terms and conditions of the GNU Lesser General Public License. 
- * You should have received a copy of the GNU LGP License along with this 
+ * the terms and conditions of the GNU Lesser General Public License.
+ * You should have received a copy of the GNU LGP License along with this
  * library; if not, you can download a copy from <http://www.quickserver.org/>.
  *
  * For questions, suggestions, bug-reports, enhancement-requests etc.
@@ -14,9 +14,9 @@
 
 package xmladder;
 
-import java.io.*;
-import java.net.*;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 
 public class LoadTest {
 	private Agent agents[] = null;
@@ -27,38 +27,38 @@ public class LoadTest {
 		System.out.print("Starting init..");
 		times = Collections.synchronizedList(new ArrayList(count));
 		agents = new Agent[count];
-		for(int i=0;i<count;i++) {
+		for (int i = 0; i < count; i++) {
 			agents[i] = new Agent(agentGroup, times, host, port);
 			agents[i].start();
-		}		
-		System.out.println(" "+agentGroup.activeCount()+" ready.");
+		}
+		System.out.println(" " + agentGroup.activeCount() + " ready.");
 	}
 
 	public void test() throws InterruptedException {
 		int count = agents.length;
-		
+
 
 		System.out.print("Starting test..");
-		
-		
+
+
 		long stime = System.currentTimeMillis();
-		synchronized(agentGroup) {
+		synchronized (agentGroup) {
 			agentGroup.notifyAll();
 		}
 
-		for(int i=0;i<count;i++) {
+		for (int i = 0; i < count; i++) {
 			agents[i].join();
-		}		
+		}
 
 		long etime = System.currentTimeMillis();
 		System.out.println("Done\n");
 
 
 		long time = etime - stime;
-		System.out.println("Total Time : "+time+"ms");
+		System.out.println("Total Time : " + time + "ms");
 
-		time = time/count;
-		System.out.println("Avg. Time  : "+time+"ms\n");
+		time = time / count;
+		System.out.println("Avg. Time  : " + time + "ms\n");
 
 		
 		/*
@@ -77,15 +77,15 @@ public class LoadTest {
 		int port = 2222;
 		int count = 50;
 
-		if(args.length>0)
+		if (args.length > 0)
 			count = Integer.parseInt(args[0]);
-		if(args.length>1)
+		if (args.length > 1)
 			host = args[1];
-		if(args.length>2)
+		if (args.length > 2)
 			port = Integer.parseInt(args[2]);
-			
+
 		lt.init(count, host, port);
-		
+
 		Thread.sleep(200); //let all thread get ready
 		lt.test();
 	}
@@ -98,20 +98,20 @@ class Agent extends Thread {
 	List list = null;
 
 	public Agent(ThreadGroup threadGroup, List list, String host, int port) {
-		super(threadGroup, null, "Agent:"+ ++count);
+		super(threadGroup, null, "Agent:" + ++count);
 		client = new XmlAdderClient(host, port);
 		this.list = list;
 	}
 
 	public void run() {
-		synchronized(getThreadGroup()) {
+		synchronized (getThreadGroup()) {
 			try {
 				getThreadGroup().wait();
-			} catch(Exception e) {
-				System.err.println("Error is wait! "+e);
+			} catch (Exception e) {
+				System.err.println("Error is wait! " + e);
 			}
 		}
 		client.test();
-		list.add(""+client.getTime());
+		list.add("" + client.getTime());
 	}
 }

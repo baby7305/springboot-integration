@@ -1,10 +1,10 @@
 /*
- * This file is part of the QuickServer library 
+ * This file is part of the QuickServer library
  * Copyright (C) QuickServer.org
  *
  * Use, modification, copying and distribution of this software is subject to
- * the terms and conditions of the GNU Lesser General Public License. 
- * You should have received a copy of the GNU LGP License along with this 
+ * the terms and conditions of the GNU Lesser General Public License.
+ * You should have received a copy of the GNU LGP License along with this
  * library; if not, you can download a copy from <http://www.quickserver.org/>.
  *
  * For questions, suggestions, bug-reports, enhancement-requests etc.
@@ -17,29 +17,29 @@ import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
 
 /**
- * @since 1.4.8
  * @author Akshathkumar Shetty
+ * @since 1.4.8
  */
 public class SocketBasedHost extends Host {
 	private InetSocketAddress inetSocketAddress;
 	private String textToExpect;
 	private boolean secure;
-	
+
 	private String requestText;
 	private String responseTextToExpect;
-	
-	
+
+
 	public SocketBasedHost() {
-		
+
 	}
-	
+
 	public SocketBasedHost(String host, int port) throws Exception {
 		setInetSocketAddress(host, port);
 	}
-	
+
 	public String toString() {
 		StringBuilder sb = new StringBuilder();
-		if(getName()!=null)sb.append(getName());
+		if (getName() != null) sb.append(getName());
 		sb.append("[");
 		sb.append("Host:");
 		sb.append(getInetSocketAddress());
@@ -52,9 +52,9 @@ public class SocketBasedHost extends Host {
 	public InetSocketAddress getInetSocketAddress() {
 		return inetSocketAddress;
 	}
-	
+
 	public void setInetSocketAddress(String host, int port) throws UnknownHostException {
-		setInetSocketAddress(InetSocketAddress.createUnresolved(host, port));		
+		setInetSocketAddress(InetSocketAddress.createUnresolved(host, port));
 	}
 
 	public void setInetSocketAddress(InetSocketAddress inetSocketAddress) throws UnknownHostException {

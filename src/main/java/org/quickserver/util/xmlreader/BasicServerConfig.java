@@ -1,10 +1,10 @@
 /*
- * This file is part of the QuickServer library 
+ * This file is part of the QuickServer library
  * Copyright (C) QuickServer.org
  *
  * Use, modification, copying and distribution of this software is subject to
- * the terms and conditions of the GNU Lesser General Public License. 
- * You should have received a copy of the GNU LGP License along with this 
+ * the terms and conditions of the GNU Lesser General Public License.
+ * You should have received a copy of the GNU LGP License along with this
  * library; if not, you can download a copy from <http://www.quickserver.org/>.
  *
  * For questions, suggestions, bug-reports, enhancement-requests etc.
@@ -18,13 +18,14 @@ import org.quickserver.net.server.*;
 
 /**
  * This class encapsulate the basic configuration of QuickServer.
+ *
  * @author Akshathkumar Shetty
- * @since 1.2
  * @see org.quickserver.util.xmlreader.QuickServerConfig
  * @see org.quickserver.util.xmlreader.QSAdminServerConfig
+ * @since 1.2
  */
 public class BasicServerConfig implements java.io.Serializable {
-	
+
 	private String clientAuthenticationHandler; //v1.4.6
 	private String clientEventHandler; //v1.4.6
 	private String clientExtendedEventHandler; //v1.4.6
@@ -33,18 +34,18 @@ public class BasicServerConfig implements java.io.Serializable {
 	private String clientBinaryHandler;
 	private String clientData;
 	private String clientWriteHandler; //v1.4.5
-	
+
 	private String serverBanner;
 	private String name = null;
-	private String maxConnectionMsg = "-ERR Server Busy. Max Connection Reached";	
+	private String maxConnectionMsg = "-ERR Server Busy. Max Connection Reached";
 	private String timeoutMsg = "-ERR Timeout";
 	private int maxAuthTry = 5;
 	private String maxAuthTryMsg = "-ERR Max Auth Try Reached";
-	private int port = 9876;	
+	private int port = 9876;
 	private String bindAddr;
 	private long maxConnection = -1;
 	private int timeout = 1 * 60 * 1000; //1 min. socket timeout	
-	
+
 	private String consoleLoggingLevel = "INFO";
 	private String consoleLoggingFormatter;
 
@@ -67,276 +68,319 @@ public class BasicServerConfig implements java.io.Serializable {
 	private DefaultDataMode defaultDataMode = new DefaultDataMode();
 
 	/**
-     * Returns the name of the QuickServer
-     * @see #setName
-     */
+	 * Returns the name of the QuickServer
+	 *
+	 * @see #setName
+	 */
 	public String getName() {
 		return name;
 	}
-    /**
-     * Sets the name for the QuickServer. 
+
+	/**
+	 * Sets the name for the QuickServer.
 	 * XML Tag: &lt;name&gt;&lt;/name&gt;
-     * @param name for the QuickServer
-     * @see #getName
-     */
+	 *
+	 * @param name for the QuickServer
+	 * @see #getName
+	 */
 	public void setName(String name) {
-		if(name!=null && name.equals("")==false) 
+		if (name != null && name.equals("") == false)
 			this.name = name;
 	}
 
 	/**
-     * Returns the Server Banner of the QuickServer
-     * @see #setServerBanner
-     */
+	 * Returns the Server Banner of the QuickServer
+	 *
+	 * @see #setServerBanner
+	 */
 	public String getServerBanner() {
 		return serverBanner;
 	}
-    /**
-     * Sets the serverBanner for the QuickServer
+
+	/**
+	 * Sets the serverBanner for the QuickServer
 	 * that will be displayed on the standard output [console]
 	 * when server starts. &lt;br&gt;&nbsp;&lt;br&gt;
 	 * To set welcome message to your client
-	 * {@link org.quickserver.net.server.ClientEventHandler#gotConnected} 
+	 * {@link org.quickserver.net.server.ClientEventHandler#gotConnected}
 	 * XML Tag: &lt;server-banner&gt;&lt;/server-banner&gt;
+	 *
 	 * @param banner for the QuickServer
-     * @see #getServerBanner
-     */
+	 * @see #getServerBanner
+	 */
 	public void setServerBanner(String banner) {
-		if(banner!=null && banner.equals("")==false) 
+		if (banner != null && banner.equals("") == false)
 			serverBanner = banner;
 	}
 
 	/**
-     * Sets the port for the QuickServer to listen on.
+	 * Sets the port for the QuickServer to listen on.
 	 * If not set, it will run on Port 9876<br/>
 	 * XML Tag: &lt;port&gt;&lt;/port&gt;
+	 *
 	 * @param port to listen on.
-     * @see #getPort
-     */
+	 * @see #getPort
+	 */
 	public void setPort(int port) {
-		if(port>=0)
+		if (port >= 0)
 			this.port = port;
 	}
+
 	/**
-     * Returns the port for the QuickServer
-     * @see #setPort
-     */
+	 * Returns the port for the QuickServer
+	 *
+	 * @see #setPort
+	 */
 	public int getPort() {
 		return port;
 	}
 
 	/**
-     * Sets the ClientCommandHandler class that interacts with 
+	 * Sets the ClientCommandHandler class that interacts with
 	 * client sockets.
 	 * XML Tag: &lt;client-command-handler&gt;&lt;/client-command-handler&gt;
-	 * @param handler the fully qualified name of the class that 
-	 *  implements {@link org.quickserver.net.server.ClientCommandHandler}
+	 *
+	 * @param handler the fully qualified name of the class that
+	 *                implements {@link org.quickserver.net.server.ClientCommandHandler}
 	 * @see #getClientCommandHandler
-     */
+	 */
 	public void setClientCommandHandler(String handler) {
-		if(handler!=null && handler.equals("")==false) 
+		if (handler != null && handler.equals("") == false)
 			clientCommandHandler = handler;
 	}
+
 	/**
-     * Sets the ClientCommandHandler class that interacts with 
+	 * Sets the ClientCommandHandler class that interacts with
 	 * client sockets.
+	 *
 	 * @since 1.4.6
-     */
+	 */
 	public void setClientCommandHandler(ClientCommandHandler handler) {
-		if(handler!=null) 
+		if (handler != null)
 			clientCommandHandler = handler.getClass().getName();
 	}
+
 	/**
-     * Returns the ClientCommandHandler class that interacts with 
+	 * Returns the ClientCommandHandler class that interacts with
 	 * client sockets.
+	 *
 	 * @see #setClientCommandHandler
-     */
+	 */
 	public String getClientCommandHandler() {
 		return clientCommandHandler;
 	}
 
 	/**
-     * Sets the ClientEventHandler class that gets notified of
+	 * Sets the ClientEventHandler class that gets notified of
 	 * client events.
 	 * XML Tag: &lt;client-event-handler&gt;&lt;/client-event-handler&gt;
-	 * @param handler the fully qualified name of the class that 
-	 *  implements {@link org.quickserver.net.server.ClientEventHandler}
+	 *
+	 * @param handler the fully qualified name of the class that
+	 *                implements {@link org.quickserver.net.server.ClientEventHandler}
 	 * @see #getClientEventHandler
 	 * @since 1.4.6
-     */
+	 */
 	public void setClientEventHandler(String handler) {
-		if(handler!=null && handler.equals("")==false) 
+		if (handler != null && handler.equals("") == false)
 			clientEventHandler = handler;
 	}
+
 	/**
-     * Sets the ClientEventHandler class that gets notified of
+	 * Sets the ClientEventHandler class that gets notified of
 	 * client events.
+	 *
 	 * @since 1.4.6
-     */
+	 */
 	public void setClientEventHandler(ClientEventHandler handler) {
-		if(handler!=null) 
+		if (handler != null)
 			clientEventHandler = handler.getClass().getName();
 	}
+
 	/**
-     * Returns the ClientEventHandler class that gets notified of
+	 * Returns the ClientEventHandler class that gets notified of
 	 * client events.
+	 *
 	 * @see #setClientEventHandler
 	 * @since 1.4.6
-     */
+	 */
 	public String getClientEventHandler() {
 		return clientEventHandler;
 	}
 
 	/**
-     * Sets the ClientExtendedEventHandler class that gets notified of
+	 * Sets the ClientExtendedEventHandler class that gets notified of
 	 * client's extended events.
 	 * XML Tag: &lt;client-extended-event-handler&gt;&lt;/client-extended-event-handler&gt;
-	 * @param handler the fully qualified name of the class that 
-	 *  implements {@link org.quickserver.net.server.ClientExtendedEventHandler}
+	 *
+	 * @param handler the fully qualified name of the class that
+	 *                implements {@link org.quickserver.net.server.ClientExtendedEventHandler}
 	 * @see #getClientExtendedEventHandler
 	 * @since 1.4.6
-     */
+	 */
 	public void setClientExtendedEventHandler(String handler) {
-		if(handler!=null && handler.equals("")==false) 
+		if (handler != null && handler.equals("") == false)
 			clientExtendedEventHandler = handler;
 	}
+
 	/**
-     * Sets the ClientExtendedEventHandler class that gets notified of
+	 * Sets the ClientExtendedEventHandler class that gets notified of
 	 * client's extended events.
+	 *
 	 * @since 1.4.6
-     */
+	 */
 	public void setClientExtendedEventHandler(ClientExtendedEventHandler handler) {
-		if(handler!=null) 
+		if (handler != null)
 			clientExtendedEventHandler = handler.getClass().getName();
 	}
+
 	/**
-     * Returns the ClientExtendedEventHandler class that gets notified of
+	 * Returns the ClientExtendedEventHandler class that gets notified of
 	 * client's extended events.
+	 *
 	 * @see #setClientExtendedEventHandler
 	 * @since 1.4.6
-     */
+	 */
 	public String getClientExtendedEventHandler() {
 		return clientExtendedEventHandler;
 	}
 
 	/**
-     * Sets the Authenticator class that handles the 
+	 * Sets the Authenticator class that handles the
 	 * authentication of the client.
 	 * XML Tag: &lt;authenticator&gt;&lt;/authenticator&gt;
-	 * @param authenticator the fully qualified name of the class 
-	 * that implements {@link org.quickserver.net.server.Authenticator}.
+	 *
+	 * @param authenticator the fully qualified name of the class
+	 *                      that implements {@link org.quickserver.net.server.Authenticator}.
 	 * @see #getAuthenticator
 	 * @since 1.3
-     */
+	 */
 	public void setAuthenticator(String authenticator) {
-		if(authenticator!=null && authenticator.equals("")==false) 
+		if (authenticator != null && authenticator.equals("") == false)
 			this.clientAuthenticationHandler = authenticator;
 	}
+
 	/**
-     * Sets the Authenticator class that handles the 
+	 * Sets the Authenticator class that handles the
 	 * authentication of the client.
+	 *
 	 * @since 1.4.6
-     */
+	 */
 	public void setAuthenticator(Authenticator authenticator) {
-		if(authenticator!=null) 
+		if (authenticator != null)
 			this.clientAuthenticationHandler = authenticator.getClass().getName();
 	}
+
 	/**
-     * Returns the Authenticator class that handles the 
+	 * Returns the Authenticator class that handles the
 	 * authentication of the client.
+	 *
 	 * @see #setAuthenticator
 	 * @since 1.3
-     */
+	 */
 	public String getAuthenticator() {
 		return clientAuthenticationHandler;
 	}
 
 	/**
-     * Sets the ClientAuthenticationHandler class that handles the 
+	 * Sets the ClientAuthenticationHandler class that handles the
 	 * authentication of the client.
 	 * XML Tag: &lt;client-authentication-handler&gt;&lt;/client-authentication-handler&gt;
-	 * @param clientAuthenticationHandler the fully qualified name of the class 
-	 * that implements {@link org.quickserver.net.server.ClientAuthenticationHandler}.
+	 *
+	 * @param clientAuthenticationHandler the fully qualified name of the class
+	 *                                    that implements {@link org.quickserver.net.server.ClientAuthenticationHandler}.
 	 * @see #getClientAuthenticationHandler
 	 * @since 1.4.6
-     */
+	 */
 	public void setClientAuthenticationHandler(String clientAuthenticationHandler) {
-		if(clientAuthenticationHandler!=null && clientAuthenticationHandler.equals("")==false) 
+		if (clientAuthenticationHandler != null && clientAuthenticationHandler.equals("") == false)
 			this.clientAuthenticationHandler = clientAuthenticationHandler;
 	}
+
 	/**
-     * Sets the ClientAuthenticationHandler class that handles the 
+	 * Sets the ClientAuthenticationHandler class that handles the
 	 * authentication of the client.
+	 *
 	 * @since 1.4.6
-     */
+	 */
 	public void setClientAuthenticationHandler(ClientAuthenticationHandler clientAuthenticationHandler) {
-		if(clientAuthenticationHandler!=null) 
+		if (clientAuthenticationHandler != null)
 			this.clientAuthenticationHandler = clientAuthenticationHandler.getClass().getName();
 	}
+
 	/**
-     * Returns the ClientAuthenticationHandler class that handles the 
+	 * Returns the ClientAuthenticationHandler class that handles the
 	 * authentication of the client.
+	 *
 	 * @see #setClientAuthenticationHandler
 	 * @since 1.4.6
-     */
+	 */
 	public String getClientAuthenticationHandler() {
 		return clientAuthenticationHandler;
 	}
 
 	/**
-     * Sets the ClientData class that carries client data. 
+	 * Sets the ClientData class that carries client data.
 	 * XML Tag: &lt;client-data&gt;&lt;/client-data&gt;
-	 * @param data the fully qualified name of the class that 
-	 * extends {@link org.quickserver.net.server.ClientData}.
+	 *
+	 * @param data the fully qualified name of the class that
+	 *             extends {@link org.quickserver.net.server.ClientData}.
 	 * @see #getClientData
-     */
+	 */
 	public void setClientData(String data) {
-		if(data!=null && data.equals("")==false)
+		if (data != null && data.equals("") == false)
 			this.clientData = data;
 	}
+
 	/**
-     * Sets the ClientData class that carries client data. 
+	 * Sets the ClientData class that carries client data.
+	 *
 	 * @since 1.4.6
-     */
+	 */
 	public void setClientData(ClientData data) {
-		if(data!=null)
+		if (data != null)
 			this.clientData = data.getClass().getName();
 	}
+
 	/**
-     * Returns the ClientData class string that carries client data  
-	 * @return the fully qualified name of the class that 
+	 * Returns the ClientData class string that carries client data
+	 *
+	 * @return the fully qualified name of the class that
 	 * implements {@link org.quickserver.net.server.ClientData}.
 	 * @see #setClientData
-     */
+	 */
 	public String getClientData() {
 		return clientData;
 	}
 
 	/**
-     * Sets the Client Socket timeout in milliseconds.
+	 * Sets the Client Socket timeout in milliseconds.
 	 * XML Tag: &lt;timeout&gt;&lt;/timeout&gt;
+	 *
 	 * @param time client socket timeout in milliseconds.
 	 * @see #getTimeout
-     */
+	 */
 	public void setTimeout(int time) {
 		timeout = time;
 	}
+
 	/**
-     * Returns the Client Socket timeout in milliseconds.
+	 * Returns the Client Socket timeout in milliseconds.
+	 *
 	 * @see #setTimeout
-     */
+	 */
 	public int getTimeout() {
 		return timeout;
 	}
 
-	/** 
+	/**
 	 * Sets maximum allowed login attempts.
 	 * XML Tag: &lt;max-auth-try&gt;&lt;/max-auth-try&gt;
 	 */
 	public void setMaxAuthTry(int authTry) {
 		maxAuthTry = authTry;
 	}
-	/** 
+
+	/**
 	 * Returns maximum allowed login attempts.
 	 * Default is : 5
 	 */
@@ -344,20 +388,23 @@ public class BasicServerConfig implements java.io.Serializable {
 		return maxAuthTry;
 	}
 
-	/** 
-	 * Sets message to be displayed when maximum allowed login 
+	/**
+	 * Sets message to be displayed when maximum allowed login
 	 * attempts has reached.
 	 * Default is : -ERR Max Auth Try Reached<br/>
 	 * XML Tag: &lt;max-auth-try-msg&gt;&lt;/max-auth-try-msg&gt;
+	 *
 	 * @see #getMaxAuthTryMsg
 	 */
 	public void setMaxAuthTryMsg(String msg) {
-		if(msg!=null && msg.equals("")==false)
+		if (msg != null && msg.equals("") == false)
 			maxAuthTryMsg = msg;
 	}
-	/** 
-	 * Returns message to be displayed when maximum allowed login 
+
+	/**
+	 * Returns message to be displayed when maximum allowed login
 	 * attempts has reached.
+	 *
 	 * @see #getMaxAuthTryMsg
 	 */
 	public String getMaxAuthTryMsg() {
@@ -365,17 +412,20 @@ public class BasicServerConfig implements java.io.Serializable {
 	}
 
 	/**
-	 * Sets timeout message. 
+	 * Sets timeout message.
 	 * Default is : -ERR Timeout<br/>
 	 * XML Tag: &lt;timeout-msg&gt;&lt;/timeout-msg&gt;
+	 *
 	 * @see #getTimeoutMsg
 	 */
 	public void setTimeoutMsg(String msg) {
-		if(msg!=null && msg.equals("")==false)
+		if (msg != null && msg.equals("") == false)
 			timeoutMsg = msg;
 	}
-	/** 
+
+	/**
 	 * Returns timeout message.
+	 *
 	 * @see #setTimeoutMsg
 	 */
 	public String getTimeoutMsg() {
@@ -385,13 +435,16 @@ public class BasicServerConfig implements java.io.Serializable {
 	/**
 	 * Sets the maximum number of client connection allowed..
 	 * XML Tag: &lt;max-connection&gt;&lt;/max-connection&gt;
+	 *
 	 * @see #getMaxConnection
 	 */
 	public void setMaxConnection(long maxConnection) {
 		this.maxConnection = maxConnection;
 	}
-	/** 
+
+	/**
 	 * Returns the maximum number of client connection allowed.
+	 *
 	 * @see #setMaxConnection
 	 */
 	public long getMaxConnection() {
@@ -400,18 +453,21 @@ public class BasicServerConfig implements java.io.Serializable {
 
 	/**
 	 * Sets the message to be sent to any new client connected after
-	 * maximum client connection has reached. 
+	 * maximum client connection has reached.
 	 * Default is : <code>-ERR Server Busy. Max Connection Reached</code><br/>
 	 * XML Tag: &lt;max-connection-msg&gt;&lt;/max-connection-msg&gt;
+	 *
 	 * @see #getMaxConnectionMsg
 	 */
 	public void setMaxConnectionMsg(String maxConnectionMsg) {
-		if(maxConnectionMsg!=null && maxConnectionMsg.equals("")==false)
+		if (maxConnectionMsg != null && maxConnectionMsg.equals("") == false)
 			this.maxConnectionMsg = maxConnectionMsg;
 	}
+
 	/**
-	 * Returns the message to be sent to any new client connected 
+	 * Returns the message to be sent to any new client connected
 	 * after maximum client connection has reached.
+	 *
 	 * @see #setMaxConnectionMsg
 	 */
 	public String getMaxConnectionMsg() {
@@ -419,20 +475,23 @@ public class BasicServerConfig implements java.io.Serializable {
 	}
 
 	/**
-	 * Sets the Ip address to bind to. 
-	 * @param bindAddr argument can be used on a multi-homed host for a 
-	 * QuickServer that will only accept connect requests to one 
-	 * of its addresses. If not set, it will default accepting 
-	 * connections on any/all local addresses.
-	 * XML Tag: &lt;bind-address&gt;&lt;/bind-address&gt;
+	 * Sets the Ip address to bind to.
+	 *
+	 * @param bindAddr argument can be used on a multi-homed host for a
+	 *                 QuickServer that will only accept connect requests to one
+	 *                 of its addresses. If not set, it will default accepting
+	 *                 connections on any/all local addresses.
+	 *                 XML Tag: &lt;bind-address&gt;&lt;/bind-address&gt;
 	 * @see #getBindAddr
 	 */
 	public void setBindAddr(String bindAddr) {
-		if(bindAddr!=null && bindAddr.equals("")==false)
+		if (bindAddr != null && bindAddr.equals("") == false)
 			this.bindAddr = bindAddr;
 	}
+
 	/**
-	 * Returns the Ip address binding to. 
+	 * Returns the Ip address binding to.
+	 *
 	 * @see #setBindAddr
 	 */
 	public String getBindAddr() {
@@ -440,31 +499,36 @@ public class BasicServerConfig implements java.io.Serializable {
 	}
 
 	/**
-     * Sets the ClientObjectHandler class that interacts with 
+	 * Sets the ClientObjectHandler class that interacts with
 	 * client sockets.
 	 * XML Tag: &lt;client-object-handler&gt;&lt;/client-object-handler&gt;
-	 * @param handler object the fully qualified name of the class that 
-	 *  implements {@link org.quickserver.net.server.ClientObjectHandler}
+	 *
+	 * @param handler object the fully qualified name of the class that
+	 *                implements {@link org.quickserver.net.server.ClientObjectHandler}
 	 * @see #getClientObjectHandler
-     */
+	 */
 	public void setClientObjectHandler(String handler) {
-		if(handler!=null && handler.equals("")==false)
+		if (handler != null && handler.equals("") == false)
 			clientObjectHandler = handler;
 	}
+
 	/**
-     * Sets the ClientObjectHandler class that interacts with 
+	 * Sets the ClientObjectHandler class that interacts with
 	 * client sockets.
+	 *
 	 * @since 1.4.6
-     */
+	 */
 	public void setClientObjectHandler(ClientObjectHandler handler) {
-		if(handler!=null)
+		if (handler != null)
 			clientObjectHandler = handler.getClass().getName();
 	}
+
 	/**
-     * Returns the ClientObjectHandler class that interacts with 
+	 * Returns the ClientObjectHandler class that interacts with
 	 * client sockets.
+	 *
 	 * @see #setClientObjectHandler
-     */
+	 */
 	public String getClientObjectHandler() {
 		return clientObjectHandler;
 	}
@@ -472,12 +536,14 @@ public class BasicServerConfig implements java.io.Serializable {
 	/**
 	 * Sets the console log handler level.
 	 * XML Tag: &lt;console-logging-level&gt;&lt;/console-logging-level&gt;
+	 *
 	 * @param level like INFO, FINE, CONFIG
 	 */
 	public void setConsoleLoggingLevel(String level) {
-		if(level!=null && level.equals("")==false)
+		if (level != null && level.equals("") == false)
 			consoleLoggingLevel = level;
 	}
+
 	/**
 	 * Returns the console log handler level.
 	 */
@@ -488,13 +554,15 @@ public class BasicServerConfig implements java.io.Serializable {
 	/**
 	 * Sets the console log handler formatter.
 	 * XML Tag: &lt;console-logging-formatter&gt;&lt;/console-logging-formatter&gt;
-	 * @param formatter fully qualified name of the class that 
-	 *  implements {@link java.util.logging.Formatter}
+	 *
+	 * @param formatter fully qualified name of the class that
+	 *                  implements {@link java.util.logging.Formatter}
 	 */
 	public void setConsoleLoggingFormatter(String formatter) {
-		if(formatter!=null && formatter.equals("")==false)
+		if (formatter != null && formatter.equals("") == false)
 			consoleLoggingFormatter = formatter;
 	}
+
 	/**
 	 * Returns the console log handler level.
 	 */
@@ -507,9 +575,10 @@ public class BasicServerConfig implements java.io.Serializable {
 	 * XML Tag: &lt;object-pool&gt;&lt;/object-pool&gt;
 	 */
 	public void setObjectPoolConfig(ObjectPoolConfig objectPoolConfig) {
-		if(objectPoolConfig!=null)
+		if (objectPoolConfig != null)
 			this.objectPoolConfig = objectPoolConfig;
 	}
+
 	/**
 	 * Returns the ObjectPool Config object.
 	 */
@@ -519,6 +588,7 @@ public class BasicServerConfig implements java.io.Serializable {
 
 	/**
 	 * Sets the communication logging flag.
+	 *
 	 * @see #getCommunicationLogging
 	 * XML Tag: &lt;communication-logging&gt;&lt;enable&gt;true&lt;/enable&gt;&lt;/communication-logging&gt;
 	 * Allowed values = <code>true</code> | <code>false</code>
@@ -527,8 +597,10 @@ public class BasicServerConfig implements java.io.Serializable {
 	public void setCommunicationLogging(boolean enable) {
 		this.communicationLogging = enable;
 	}
+
 	/**
 	 * Returns the communication logging flag.
+	 *
 	 * @see #setCommunicationLogging
 	 * @since 1.3.2
 	 */
@@ -538,14 +610,17 @@ public class BasicServerConfig implements java.io.Serializable {
 
 	/**
 	 * Sets the Access constraints
+	 *
 	 * @since 1.3.3
 	 */
 	public void setAccessConstraintConfig(
-		AccessConstraintConfig accessConstraintConfig) {
+			AccessConstraintConfig accessConstraintConfig) {
 		this.accessConstraintConfig = accessConstraintConfig;
 	}
+
 	/**
 	 * Returns Access constraints if present else <code>null</code>.
+	 *
 	 * @since 1.3.3
 	 */
 	public AccessConstraintConfig getAccessConstraintConfig() {
@@ -554,13 +629,16 @@ public class BasicServerConfig implements java.io.Serializable {
 
 	/**
 	 * Sets the ServerHooks
+	 *
 	 * @since 1.3.3
 	 */
 	public void setServerHooks(ServerHooks serverHooks) {
 		this.serverHooks = serverHooks;
 	}
+
 	/**
 	 * Returns ServerHooks if present else <code>null</code>.
+	 *
 	 * @since 1.3.3
 	 */
 	public ServerHooks getServerHooks() {
@@ -569,13 +647,16 @@ public class BasicServerConfig implements java.io.Serializable {
 
 	/**
 	 * Sets the Secure setting for QuickServer
+	 *
 	 * @since 1.4.0
 	 */
 	public void setSecure(Secure secure) {
 		this.secure = secure;
 	}
+
 	/**
 	 * Returns Secure setting for QuickServer
+	 *
 	 * @since 1.4.0
 	 */
 	public Secure getSecure() {
@@ -583,120 +664,139 @@ public class BasicServerConfig implements java.io.Serializable {
 	}
 
 	/**
-     * Sets the ClientBinaryHandler class that interacts with 
+	 * Sets the ClientBinaryHandler class that interacts with
 	 * client sockets.
 	 * XML Tag: &lt;client-binary-handler&gt;&lt;/client-binary-handler&gt;
-	 * @param handler the fully qualified name of the class that 
-	 *  implements {@link org.quickserver.net.server.ClientBinaryHandler}
+	 *
+	 * @param handler the fully qualified name of the class that
+	 *                implements {@link org.quickserver.net.server.ClientBinaryHandler}
 	 * @see #getClientBinaryHandler
-     */
+	 */
 	public void setClientBinaryHandler(String handler) {
-		if(handler!=null && handler.equals("")==false) 
+		if (handler != null && handler.equals("") == false)
 			clientBinaryHandler = handler;
 	}
-	/**
-     * Sets the ClientBinaryHandler class that interacts with 
-	 * client sockets.
-	 * @since 1.4.6
-     */
-	public void setClientBinaryHandler(ClientBinaryHandler handler) {
-		if(handler!=null) 
-			clientBinaryHandler = handler.getClass().getName();
-	}
-	/**
-     * Returns the ClientBinaryHandler class that interacts with 
-	 * client sockets.
-	 * @see #setClientBinaryHandler
-     */
-	public String getClientBinaryHandler() {
-		return clientBinaryHandler;
-	}	
 
 	/**
-     * Sets the ServerMode for the QuickServer.
+	 * Sets the ClientBinaryHandler class that interacts with
+	 * client sockets.
+	 *
+	 * @since 1.4.6
+	 */
+	public void setClientBinaryHandler(ClientBinaryHandler handler) {
+		if (handler != null)
+			clientBinaryHandler = handler.getClass().getName();
+	}
+
+	/**
+	 * Returns the ClientBinaryHandler class that interacts with
+	 * client sockets.
+	 *
+	 * @see #setClientBinaryHandler
+	 */
+	public String getClientBinaryHandler() {
+		return clientBinaryHandler;
+	}
+
+	/**
+	 * Sets the ServerMode for the QuickServer.
+	 *
 	 * @param serverMode ServerMode object.
-     * @see #getServerMode
+	 * @see #getServerMode
 	 * @since 1.4.5
-     */
+	 */
 	public void setServerMode(ServerMode serverMode) {
-		if(serverMode==null) serverMode = new ServerMode();
+		if (serverMode == null) serverMode = new ServerMode();
 		this.serverMode = serverMode;
 	}
+
 	/**
-     * Returns the ServerMode for the QuickServer.
-     * @see #setServerMode
+	 * Returns the ServerMode for the QuickServer.
+	 *
+	 * @see #setServerMode
 	 * @since 1.4.5
-     */
+	 */
 	public ServerMode getServerMode() {
 		return serverMode;
 	}
 
 	/**
-     * Sets the ClientWriteHandler class that interacts with 
+	 * Sets the ClientWriteHandler class that interacts with
 	 * client sockets.
 	 * XML Tag: &lt;client-write-handler&gt;&lt;/client-write-handler&gt;
-	 * @param handler the fully qualified name of the class that 
-	 *  implements {@link org.quickserver.net.server.ClientWriteHandler}
+	 *
+	 * @param handler the fully qualified name of the class that
+	 *                implements {@link org.quickserver.net.server.ClientWriteHandler}
 	 * @see #getClientWriteHandler
 	 * @since 1.4.5
-     */
+	 */
 	public void setClientWriteHandler(String handler) {
-		if(handler!=null && handler.equals("")==false) 
+		if (handler != null && handler.equals("") == false)
 			clientWriteHandler = handler;
 	}
+
 	/**
-     * Sets the ClientWriteHandler class that interacts with 
+	 * Sets the ClientWriteHandler class that interacts with
 	 * client sockets.
+	 *
 	 * @since 1.4.6
-     */
+	 */
 	public void setClientWriteHandler(ClientWriteHandler handler) {
-		if(handler!=null) 
+		if (handler != null)
 			clientWriteHandler = handler.getClass().getName();
-	}	
+	}
+
 	/**
-     * Returns the ClientWriteHandler class that interacts with 
+	 * Returns the ClientWriteHandler class that interacts with
 	 * client sockets.
+	 *
 	 * @see #setClientWriteHandler
-     */
+	 */
 	public String getClientWriteHandler() {
 		return clientWriteHandler;
 	}
 
 	/**
-     * Sets the AdvancedSettings for the QuickServer.
+	 * Sets the AdvancedSettings for the QuickServer.
+	 *
 	 * @param advancedSettings AdvancedSettings object.
-     * @see #getAdvancedSettings
+	 * @see #getAdvancedSettings
 	 * @since 1.4.5
-     */
+	 */
 	public void setAdvancedSettings(AdvancedSettings advancedSettings) {
 		this.advancedSettings = advancedSettings;
 	}
+
 	/**
-     * Returns the AdvancedSettings for the QuickServer.
-     * @see #setAdvancedSettings
+	 * Returns the AdvancedSettings for the QuickServer.
+	 *
+	 * @see #setAdvancedSettings
 	 * @since 1.4.5
-     */
+	 */
 	public AdvancedSettings getAdvancedSettings() {
-		if(advancedSettings==null) advancedSettings = new AdvancedSettings();
+		if (advancedSettings == null) advancedSettings = new AdvancedSettings();
 		return advancedSettings;
 	}
 
 	/**
-     * Sets the DefaultDataMode for the QuickServer.
+	 * Sets the DefaultDataMode for the QuickServer.
+	 *
 	 * @param defaultDataMode DefaultDataMode object.
-     * @see #getDefaultDataMode
+	 * @see #getDefaultDataMode
 	 * @since 1.4.6
-     */
+	 */
 	public void setDefaultDataMode(DefaultDataMode defaultDataMode) {
 		this.defaultDataMode = defaultDataMode;
 	}
+
 	/**
-     * Returns the DefaultDataMode for the QuickServer.
-     * @see #setDefaultDataMode
+	 * Returns the DefaultDataMode for the QuickServer.
+	 *
+	 * @see #setDefaultDataMode
 	 * @since 1.4.6
-     */
+	 */
 	public DefaultDataMode getDefaultDataMode() {
-		if(defaultDataMode==null) 
+		if (defaultDataMode == null)
 			defaultDataMode = new DefaultDataMode();
 		return defaultDataMode;
 	}

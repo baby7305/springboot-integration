@@ -1,10 +1,10 @@
 /*
- * This file is part of the QuickServer library 
+ * This file is part of the QuickServer library
  * Copyright (C) QuickServer.org
  *
  * Use, modification, copying and distribution of this software is subject to
- * the terms and conditions of the GNU Lesser General Public License. 
- * You should have received a copy of the GNU LGP License along with this 
+ * the terms and conditions of the GNU Lesser General Public License.
+ * You should have received a copy of the GNU LGP License along with this
  * library; if not, you can download a copy from <http://www.quickserver.org/>.
  *
  * For questions, suggestions, bug-reports, enhancement-requests etc.
@@ -14,19 +14,17 @@
 
 package org.quickserver.net.client;
 
+import javax.net.ssl.*;
 import java.io.*;
-import java.net.*;
+import java.net.Socket;
 import java.security.KeyStore;
 import java.security.SecureRandom;
-import java.util.logging.*;
-import javax.net.ssl.KeyManager;
-import javax.net.ssl.KeyManagerFactory;
-import javax.net.ssl.SSLContext;
-import javax.net.ssl.SSLSocketFactory;
-import javax.net.ssl.TrustManager;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  * Blocking Client socket.
+ *
  * @author Akshathkumar Shetty
  * @since 1.4.7
  */
@@ -34,11 +32,11 @@ public class BlockingClient implements ClientService {
 	private static final Logger logger = Logger.getLogger(BlockingClient.class.getName());
 	private static String charset = "ISO-8859-1";
 	private static boolean debug = false;
-	private static final int _CR = 13;  
+	private static final int _CR = 13;
 	private static final int _LF = 10;
-        
-        private static String providerForSSLContext;
-	
+
+	private static String providerForSSLContext;
+
 	public static boolean isDebug() {
 		return debug;
 	}
@@ -47,25 +45,25 @@ public class BlockingClient implements ClientService {
 		debug = aDebug;
 	}
 
-    /**
-     * @return the providerForSSLContext
-     */
-    public static String getProviderForSSLContext() {
-        return providerForSSLContext;
-    }
+	/**
+	 * @return the providerForSSLContext
+	 */
+	public static String getProviderForSSLContext() {
+		return providerForSSLContext;
+	}
 
-    /**
-     * @param aProviderForSSLContext the providerForSSLContext to set
-     */
-    public static void setProviderForSSLContext(String aProviderForSSLContext) {
-        providerForSSLContext = aProviderForSSLContext;
-    }
+	/**
+	 * @param aProviderForSSLContext the providerForSSLContext to set
+	 */
+	public static void setProviderForSSLContext(String aProviderForSSLContext) {
+		providerForSSLContext = aProviderForSSLContext;
+	}
 
 	private String host = "localhost";
-	private int port = 0;	
+	private int port = 0;
 
 	private Socket socket;
-	
+
 	private boolean secure;
 	private boolean useDummyTrustManager;
 	private TrustManager[] trustManager;
@@ -74,7 +72,7 @@ public class BlockingClient implements ClientService {
 	private InputStream clientAuthKeystoreInputStream;
 	private char[] clientAuthKeystorePassword;
 	private char[] clientAuthKeyPassword;
-	
+
 	private OutputStream out;
 	private BufferedOutputStream b_out;
 	private ObjectOutputStream o_out;
@@ -83,14 +81,15 @@ public class BlockingClient implements ClientService {
 	private BufferedInputStream b_in;
 	private BufferedReader br;
 	private ObjectInputStream o_in;
-        
+
 
 	public void setCharset(String c) {
 		charset = c;
 	}
+
 	public String getCharset() {
 		return charset;
-	}	
+	}
 
 	public int getMode() {
 		return ClientService.BLOCKING;
@@ -100,9 +99,9 @@ public class BlockingClient implements ClientService {
 		this.host = host;
 		this.port = port;
 
-		if(isDebug()) logger.finest("Connecting to "+host+":"+port);
-		
-		if(isSecure()) {
+		if (isDebug()) logger.finest("Connecting to " + host + ":" + port);
+
+		if (isSecure()) {
 			makeSSLSocketFactory();
 			socket = getSslSocketFactory().createSocket(host, port);
 		} else {
@@ -111,22 +110,22 @@ public class BlockingClient implements ClientService {
 
 		in = socket.getInputStream();
 		out = socket.getOutputStream();
-		if(isDebug()) logger.fine("Connected");
+		if (isDebug()) logger.fine("Connected");
 	}
 
 	public boolean isConnected() {
-		if(socket==null) return false;
+		if (socket == null) return false;
 		return socket.isConnected();
 	}
 
 	public void close() throws IOException {
-		if(isDebug()) logger.fine("Closing");
-		
-		if(out!=null) {
-			if(isDebug()) logger.finest("Closing output streams");
+		if (isDebug()) logger.fine("Closing");
+
+		if (out != null) {
+			if (isDebug()) logger.finest("Closing output streams");
 			try {
 				out.flush();
-			} catch(IOException ioe) {
+			} catch (IOException ioe) {
 				logger.log(Level.FINEST, "Flushing output streams failed: {0}", ioe);
 			}
 			/*
@@ -136,101 +135,101 @@ public class BlockingClient implements ClientService {
 			 */
 
 			try {
-				if(o_out != null) {
+				if (o_out != null) {
 					o_out.close();
 				}
-			} catch(IOException ioe) {
+			} catch (IOException ioe) {
 				logger.log(Level.FINEST, "o_out stream close failed: {0}", ioe);
 			}
 
 			try {
-				if(b_out != null) {
+				if (b_out != null) {
 					b_out.close();
 				}
-			} catch(IOException ioe) {
+			} catch (IOException ioe) {
 				logger.log(Level.FINEST, "b_out stream close failed: {0}", ioe);
 			}
 
 			try {
 				out.close();
-			} catch(IOException ioe) {
+			} catch (IOException ioe) {
 				logger.log(Level.FINEST, "out stream close failed: {0}", ioe);
 			}
 		}
 
-		if(in!=null) {
-			if(isDebug()) logger.finest("Closing input streams");
+		if (in != null) {
+			if (isDebug()) logger.finest("Closing input streams");
 			/*
 			if(socket!=null && isSecure()==false) {
 				socket.shutdownInput();
 			}
 			 */
 
-			if(o_in != null) {
+			if (o_in != null) {
 				try {
 					o_in.close();
-				} catch(IOException ioe) {
+				} catch (IOException ioe) {
 					logger.log(Level.FINEST, "o_in stream close failed: {0}", ioe);
 				}
-			} 
-			if(b_in != null) {
+			}
+			if (b_in != null) {
 				try {
 					b_in.close();
-				} catch(IOException ioe) {
+				} catch (IOException ioe) {
 					logger.log(Level.FINEST, "b_in stream close failed: {0}", ioe);
 				}
-			}	
-			if(br != null) {
+			}
+			if (br != null) {
 				try {
 					br.close();
-				} catch(IOException ioe) {
+				} catch (IOException ioe) {
 					logger.log(Level.FINEST, "b_in stream close failed: {0}", ioe);
 				}
 			}
 			try {
 				in.close();
-			} catch(IOException ioe) {
+			} catch (IOException ioe) {
 				logger.log(Level.FINEST, "in stream close failed: {0}", ioe);
 			}
 		}
 
-		if(socket!=null) {
+		if (socket != null) {
 			socket.close();
 			socket = null;
 		}
 	}
-	
+
 	public void sendByte(int data) throws IOException {
-		if(isDebug()) logger.fine("Sending byte");
+		if (isDebug()) logger.fine("Sending byte");
 		checkBufferedOutputStream();
 		b_out.write(data);
 		b_out.flush();
 	}
 
 	public void sendBytes(byte[] data) throws IOException {
-		if(isDebug()) logger.log(Level.FINE, "Sending bytes: {0}", data.length);
+		if (isDebug()) logger.log(Level.FINE, "Sending bytes: {0}", data.length);
 		checkBufferedOutputStream();
 		b_out.write(data);
 		b_out.flush();
 	}
 
 	public void sendBytes(String data, String _charset) throws IOException {
-		if(isDebug()) logger.log(Level.FINE, "Sending: {0}", data);
+		if (isDebug()) logger.log(Level.FINE, "Sending: {0}", data);
 		checkBufferedOutputStream();
-		if(_charset==null) _charset = charset;
+		if (_charset == null) _charset = charset;
 		byte d[] = data.getBytes(_charset);
-		b_out.write(d, 0 , d.length);
+		b_out.write(d, 0, d.length);
 		b_out.flush();
 	}
 
 	public void sendLine(String data, String _charset) throws IOException {
-		if(isDebug()) logger.log(Level.FINE, "Sending: {0}", data);
+		if (isDebug()) logger.log(Level.FINE, "Sending: {0}", data);
 		checkBufferedOutputStream();
-		if(_charset==null) _charset = charset;
+		if (_charset == null) _charset = charset;
 		byte d[] = data.getBytes(_charset);
-		b_out.write(d, 0 , d.length);
+		b_out.write(d, 0, d.length);
 		d = "\r\n".getBytes(_charset);
-		b_out.write(d, 0 , d.length);
+		b_out.write(d, 0, d.length);
 		b_out.flush();
 	}
 
@@ -239,7 +238,7 @@ public class BlockingClient implements ClientService {
 		o_out.writeObject(data);
 		o_out.flush();
 	}
-	
+
 	public int readByte() throws IOException {
 		checkBufferedInputStream();
 		return b_in.read();
@@ -249,7 +248,7 @@ public class BlockingClient implements ClientService {
 		checkBufferedInputStream();
 		return readInputStream(b_in);
 	}
-	
+
 	public byte[] readBytes(int countToRead) throws IOException {
 		checkBufferedInputStream();
 		return readInputStream(b_in, countToRead);
@@ -257,15 +256,15 @@ public class BlockingClient implements ClientService {
 
 	public String readBytes(String _charset) throws IOException {
 		byte data[] = readBytes();
-		if(data==null) return null;
-		if(_charset==null) _charset = charset;
+		if (data == null) return null;
+		if (_charset == null) _charset = charset;
 		return new String(data, _charset);
 	}
-	
+
 	public String readBytes(String _charset, int countToRead) throws IOException {
 		byte data[] = readInputStream(b_in, countToRead);
-		if(data==null) return null;
-		if(_charset==null) _charset = charset;
+		if (data == null) return null;
+		if (_charset == null) _charset = charset;
 		return new String(data, _charset);
 	}
 
@@ -273,32 +272,32 @@ public class BlockingClient implements ClientService {
 		checkBufferedReader();
 		return br.readLine();
 	}
-	
-	 public String readCRLFLine() throws IOException { 
+
+	public String readCRLFLine() throws IOException {
 		checkBufferedInputStream();
-		
-		StringBuilder sb = new StringBuilder();  
+
+		StringBuilder sb = new StringBuilder();
 		int _ch = -1;
 		do {
 			_ch = b_in.read();
-			if(_ch==-1) {
+			if (_ch == -1) {
 				return null;
 			}
-			if(_ch==_CR) {
+			if (_ch == _CR) {
 				_ch = b_in.read();
-				if(_ch==_LF) {
+				if (_ch == _LF) {
 					break;
 				} else {
-					sb.append((char) _CR);  
+					sb.append((char) _CR);
 					sb.append((char) _ch);
 				}
 			} else {
-				sb.append((char) _ch);  
+				sb.append((char) _ch);
 			}
-		} while(true);		
-		
-		return(new String(sb));  
-   } 
+		} while (true);
+
+		return (new String(sb));
+	}
 
 	public Object readObject() throws IOException, ClassNotFoundException {
 		checkObjectInputStream();
@@ -310,56 +309,59 @@ public class BlockingClient implements ClientService {
 	}
 
 	private void checkObjectOutputStream() throws IOException {
-		if(o_out==null) {
+		if (o_out == null) {
 			b_out = null;
 			o_out = new ObjectOutputStream(out);
 			o_out.flush();
 		}
 	}
+
 	private void checkBufferedOutputStream() throws IOException {
-		if(b_out==null) {
+		if (b_out == null) {
 			o_out = null;
 			b_out = new BufferedOutputStream(out);
 		}
 	}
 
 	private void checkBufferedInputStream() throws IOException {
-		if(b_in==null) {
+		if (b_in == null) {
 			br = null;
 			o_in = null;
 			b_in = new BufferedInputStream(in);
 		}
 	}
+
 	private void checkBufferedReader() throws IOException {
-		if(br==null) {
+		if (br == null) {
 			b_in = null;
 			o_in = null;
 			br = new BufferedReader(new InputStreamReader(in, charset));
 		}
 	}
+
 	private void checkObjectInputStream() throws IOException {
-		if(o_in==null) {
+		if (o_in == null) {
 			b_in = null;
 			br = null;
 			o_in = new ObjectInputStream(in);
 		}
 	}
-	
-	public static byte[] readInputStream(InputStream _in, int countToRead) 
+
+	public static byte[] readInputStream(InputStream _in, int countToRead)
 			throws IOException {
 		byte data[] = new byte[countToRead];
-		if(_in==null) {
+		if (_in == null) {
 			throw new IOException("InputStream can't be null!");
 		}
-		
+
 		int count = 0;
 		int dataRead = 0;
 		int dataLeftToRead = countToRead - dataRead;
-		
-		while(true) {
+
+		while (true) {
 			count = _in.read(data, dataRead, dataLeftToRead);
-			if(count==-1) {
-				if(dataRead==countToRead) {
+			if (count == -1) {
+				if (dataRead == countToRead) {
 					break;
 				} else {
 					throw new IOException("we have eof!");
@@ -368,30 +370,30 @@ public class BlockingClient implements ClientService {
 				dataRead = dataRead + count;
 				dataLeftToRead = countToRead - dataRead;
 			}
-			
-			if(dataRead>=countToRead) {
+
+			if (dataRead >= countToRead) {
 				break;
-			}			
+			}
 		}//while
 		return data;
 	}
 
 	public static byte[] readInputStream(InputStream _in) throws IOException {
 		byte data[] = null;
-		if(_in==null)
+		if (_in == null)
 			throw new IOException("InputStream can't be null!");
-		
+
 		int s = _in.read();
-		if(s==-1) {
+		if (s == -1) {
 			return null; //Connection lost
 		}
 		int alength = _in.available();
-		if(alength > 0) {
-			data = new byte[alength+1];	
+		if (alength > 0) {
+			data = new byte[alength + 1];
 			data[0] = (byte) s;
 			int len = _in.read(data, 1, alength);
-			if(len < alength) {
-				data = copyOf(data, len+1);
+			if (len < alength) {
+				data = copyOf(data, len + 1);
 			}
 		} else {
 			data = new byte[1];
@@ -399,13 +401,13 @@ public class BlockingClient implements ClientService {
 		}
 		return data;
 	}
-	
+
 	private static byte[] copyOf(byte data[], int len) {
 		byte newdate[] = new byte[len];
 		System.arraycopy(data, 0, newdate, 0, len);
 		return newdate;
 	}
-	
+
 	public boolean isSecure() {
 		return secure;
 	}
@@ -437,7 +439,7 @@ public class BlockingClient implements ClientService {
 	public void setSslContext(SSLContext sslContext) {
 		this.sslContext = sslContext;
 	}
-	
+
 	public SSLSocketFactory getSslSocketFactory() {
 		return sslSocketFactory;
 	}
@@ -447,21 +449,21 @@ public class BlockingClient implements ClientService {
 	}
 
 	public void makeSSLSocketFactory() throws Exception {
-		if(getSslContext()==null && getSslSocketFactory()==null) {
+		if (getSslContext() == null && getSslSocketFactory() == null) {
 			SSLContext context = null;
-                        
-                        if(getProviderForSSLContext()!=null) {
-                            context = SSLContext.getInstance("TLS", getProviderForSSLContext());
-                        } else {
-                            context = SSLContext.getInstance("TLS");
-                        }
-                        
-			if(getTrustManager()==null && isUseDummyTrustManager()) {
+
+			if (getProviderForSSLContext() != null) {
+				context = SSLContext.getInstance("TLS", getProviderForSSLContext());
+			} else {
+				context = SSLContext.getInstance("TLS");
+			}
+
+			if (getTrustManager() == null && isUseDummyTrustManager()) {
 				setTrustManager(new TrustManager[]{DummyTrustManager.getInstance()});
 			}
-			
+
 			KeyManager km[] = null;
-			if(getClientAuthKeystoreInputStream()!=null) {
+			if (getClientAuthKeystoreInputStream() != null) {
 				KeyStore keyStore = KeyStore.getInstance("JKS");
 				keyStore.load(getClientAuthKeystoreInputStream(), getClientAuthKeystorePassword());
 				KeyManagerFactory kmf = KeyManagerFactory.getInstance("SunX509");
@@ -474,8 +476,8 @@ public class BlockingClient implements ClientService {
 			context.init(km, getTrustManager(), new SecureRandom());
 			setSslContext(context);
 		}
-		
-		if(getSslSocketFactory()==null) {
+
+		if (getSslSocketFactory() == null) {
 			SSLSocketFactory factory = getSslContext().getSocketFactory();
 			setSslSocketFactory(factory);
 		}

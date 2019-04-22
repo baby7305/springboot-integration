@@ -1,10 +1,10 @@
 /*
- * This file is part of the QuickServer library 
+ * This file is part of the QuickServer library
  * Copyright (C) 2003-2005 QuickServer.org
  *
  * Use, modification, copying and distribution of this software is subject to
- * the terms and conditions of the GNU Lesser General Public License. 
- * You should have received a copy of the GNU LGP License along with this 
+ * the terms and conditions of the GNU Lesser General Public License.
+ * You should have received a copy of the GNU LGP License along with this
  * library; if not, you can download a copy from <http://www.quickserver.org/>.
  *
  * For questions, suggestions, bug-reports, enhancement-requests etc.
@@ -14,15 +14,19 @@
 
 package echowebserver;
 
-import org.quickserver.net.server.*;
 import org.quickserver.net.InitServerHook;
+import org.quickserver.net.server.QuickServer;
+import org.quickserver.util.logging.SimpleTextFormatter;
 
-import java.io.*;
-import java.util.logging.*;
-import org.quickserver.util.logging.*;
+import java.io.File;
+import java.io.IOException;
+import java.util.logging.FileHandler;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  * SetupLoggingHook
+ *
  * @author Akshathkumar Shetty
  */
 public class SetupLoggingHook implements InitServerHook {
@@ -36,13 +40,13 @@ public class SetupLoggingHook implements InitServerHook {
 		Logger logger = null;
 		FileHandler txtLog = null;
 		File log = new File("./log/");
-		if(!log.canRead())
+		if (!log.canRead())
 			log.mkdir();
-		try	{
+		try {
 			logger = Logger.getLogger("");
 			logger.setLevel(Level.FINEST);
-                        
-            logger = Logger.getLogger("sun.rmi.server.");//jconsole
+
+			logger = Logger.getLogger("sun.rmi.server.");//jconsole
 			logger.setLevel(Level.INFO);
 			
 			/*
@@ -53,10 +57,10 @@ public class SetupLoggingHook implements InitServerHook {
 			txtLog.setLevel(Level.FINE);
 			logger.addHandler(txtLog);
 			*/
-			
+
 			logger = Logger.getLogger("");
-			txtLog = new FileHandler("log/EchoWebServer_Full%u%g.txt", 
-				1024*1024, 20, true);
+			txtLog = new FileHandler("log/EchoWebServer_Full%u%g.txt",
+					1024 * 1024, 20, true);
 			txtLog.setFormatter(new SimpleTextFormatter());
 			txtLog.setLevel(Level.FINE);
 			logger.addHandler(txtLog);
@@ -72,8 +76,8 @@ public class SetupLoggingHook implements InitServerHook {
 
 			logger = Logger.getLogger("echowebserver");
 			quickserver.setAppLogger(logger);//imp
-		} catch(IOException e){
-			System.err.println("Could not create txtLog FileHandler : "+e);
+		} catch (IOException e) {
+			System.err.println("Could not create txtLog FileHandler : " + e);
 			throw e;
 		}
 	}

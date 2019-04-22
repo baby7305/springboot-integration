@@ -1,10 +1,10 @@
 /*
- * This file is part of the QuickServer library 
+ * This file is part of the QuickServer library
  * Copyright (C) QuickServer.org
  *
  * Use, modification, copying and distribution of this software is subject to
- * the terms and conditions of the GNU Lesser General Public License. 
- * You should have received a copy of the GNU LGP License along with this 
+ * the terms and conditions of the GNU Lesser General Public License.
+ * You should have received a copy of the GNU LGP License along with this
  * library; if not, you can download a copy from <http://www.quickserver.org/>.
  *
  * For questions, suggestions, bug-reports, enhancement-requests etc.
@@ -17,6 +17,7 @@ package org.quickserver.util.xmlreader;
 /**
  * This class encapsulate the ClientHandler Object pool configuration.
  * The xml is &lt;client-handler-object-pool&gt;...&lt;/client-handler-object-pool&gt;
+ *
  * @author Akshathkumar Shetty
  */
 public class ClientHandlerObjectPoolConfig extends PoolConfig {
@@ -35,7 +36,7 @@ public class ClientHandlerObjectPoolConfig extends PoolConfig {
 	 * Returns XML config of this class.
 	 */
 	public String toXML(String pad) {
-		if(pad==null) pad="";
+		if (pad == null) pad = "";
 		StringBuilder sb = new StringBuilder();
 		sb.append(pad).append("<client-handler-object-pool>\n");
 		sb.append(pad).append("\t<max-active>").append(getMaxActive()).append("</max-active>\n");

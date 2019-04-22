@@ -1,10 +1,10 @@
 /*
- * This file is part of the QuickServer library 
+ * This file is part of the QuickServer library
  * Copyright (C) QuickServer.org
  *
  * Use, modification, copying and distribution of this software is subject to
- * the terms and conditions of the GNU Lesser General Public License. 
- * You should have received a copy of the GNU LGP License along with this 
+ * the terms and conditions of the GNU Lesser General Public License.
+ * You should have received a copy of the GNU LGP License along with this
  * library; if not, you can download a copy from <http://www.quickserver.org/>.
  *
  * For questions, suggestions, bug-reports, enhancement-requests etc.
@@ -18,14 +18,13 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
- *
  * @author Akshathkumar Shetty
  * @since 1.4.8
  */
-public class QSUncaughtExceptionHandler  implements UncaughtExceptionHandler {
+public class QSUncaughtExceptionHandler implements UncaughtExceptionHandler {
 	private static final Logger logger = Logger.getLogger(QSUncaughtExceptionHandler.class.getName());
 
 	public void uncaughtException(Thread t, Throwable e) {
-		logger.log(Level.SEVERE, "Uncaught Exception [" +t+"]", e);
+		logger.log(Level.SEVERE, "Uncaught Exception [" + t + "]", e);
 	}
 }

@@ -1,10 +1,10 @@
 /*
- * This file is part of the QuickServer library 
+ * This file is part of the QuickServer library
  * Copyright (C) QuickServer.org
  *
  * Use, modification, copying and distribution of this software is subject to
- * the terms and conditions of the GNU Lesser General Public License. 
- * You should have received a copy of the GNU LGP License along with this 
+ * the terms and conditions of the GNU Lesser General Public License.
+ * You should have received a copy of the GNU LGP License along with this
  * library; if not, you can download a copy from <http://www.quickserver.org/>.
  *
  * For questions, suggestions, bug-reports, enhancement-requests etc.
@@ -14,19 +14,17 @@
 
 package org.quickserver.net.qsadmin.gui;
 
-import java.awt.*;
-import java.awt.event.*;
 import javax.swing.*;
-import javax.swing.event.*;
-import javax.swing.border.*;
-import java.util.*;
-
-import org.quickserver.util.TextFile;
-import org.quickserver.swing.JFrameUtilities;
+import java.awt.*;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.awt.event.KeyEvent;
+import java.util.Iterator;
 
 /**
  * PropertiePanel for
  * QuickServer Admin GUI - QSAdminGUI
+ *
  * @author Akshathkumar Shetty
  */
 public class PropertiePanel extends JPanel {
@@ -51,9 +49,9 @@ public class PropertiePanel extends JPanel {
 		this.qsadminMain = qsadminMain;
 		//target panel
 		targetPanel = new JPanel();
-		targetLabel = new JLabel("<html><font "+
-			"style=\"font-size:10pt;color:#535353\">"+
-			" <b>Target : </b></font>",JLabel.LEFT);
+		targetLabel = new JLabel("<html><font " +
+				"style=\"font-size:10pt;color:#535353\">" +
+				" <b>Target : </b></font>", JLabel.LEFT);
 		serverButton = new JRadioButton("Server");
 		serverButton.setMnemonic(KeyEvent.VK_S);
 		serverButton.setActionCommand("server");
@@ -62,11 +60,11 @@ public class PropertiePanel extends JPanel {
 		selfButton = new JRadioButton("Admin Server");
 		selfButton.setMnemonic(KeyEvent.VK_A);
 		selfButton.setActionCommand("self");
-		
+
 		group = new ButtonGroup();
 		group.add(serverButton);
 		group.add(selfButton);
-		class RadioListener implements ActionListener{
+		class RadioListener implements ActionListener {
 			public void actionPerformed(ActionEvent e) {
 				setTarget(e.getActionCommand());
 			}
@@ -81,14 +79,14 @@ public class PropertiePanel extends JPanel {
 		//Map map = sms.getMap();
 
 		reloadButton = new JButton("Reload Properties For the Target");
-		class ReloadListener implements ActionListener{
+		class ReloadListener implements ActionListener {
 			public void actionPerformed(ActionEvent e) {
 				Thread performer = new Thread(new Runnable() {
 					public void run() {
 						Iterator cmdIt = list.iterator();
 						Propertie propertie = null;
-						while(cmdIt.hasNext()) {
-							propertie = (Propertie)cmdIt.next();
+						while (cmdIt.hasNext()) {
+							propertie = (Propertie) cmdIt.next();
 							propertie.load(PropertiePanel.this, qsadminMain);
 						} //end of while
 						updateConnectionStatus(true);
@@ -104,30 +102,31 @@ public class PropertiePanel extends JPanel {
 		targetPanel.add(serverButton);
 		targetPanel.add(selfButton);
 		targetPanel.add(reloadButton);
-		
-		
+
+
 		commandPanel = new JPanel();
 		GridBagConstraints gbc = new GridBagConstraints();
 		commandPanel.setLayout(new GridBagLayout());
-		gbc.insets = new Insets( 0, 0, 0, 0 );
+		gbc.insets = new Insets(0, 0, 0, 0);
 		Iterator cmdIt = list.iterator();
 		Propertie propertie = null;
-		while(cmdIt.hasNext()) {
-			propertie = (Propertie)cmdIt.next();
+		while (cmdIt.hasNext()) {
+			propertie = (Propertie) cmdIt.next();
 			propertie.addToPanel(commandPanel, gbc, this, qsadminMain);
 		} //end of while
 
 
 		//--- layout main panel
-		cp.setLayout(new BorderLayout(0,10));
-		cp.add(targetPanel,BorderLayout.NORTH);
-		cp.add(commandPanel,BorderLayout.CENTER);
+		cp.setLayout(new BorderLayout(0, 10));
+		cp.add(targetPanel, BorderLayout.NORTH);
+		cp.add(commandPanel, BorderLayout.CENTER);
 
 	}
 
 	public String getTarget() {
 		return target;
 	}
+
 	private void setTarget(String target) {
 		this.target = target;
 	}
@@ -136,8 +135,8 @@ public class PropertiePanel extends JPanel {
 		java.util.List list = propertieSet.getList();
 		Iterator cmdIt = list.iterator();
 		Propertie propertie = null;
-		while(cmdIt.hasNext()) {
-			propertie = (Propertie)cmdIt.next();
+		while (cmdIt.hasNext()) {
+			propertie = (Propertie) cmdIt.next();
 			/*
 			if(qsadminMain.isConnected()==false) {
 				//remove all values
@@ -150,10 +149,10 @@ public class PropertiePanel extends JPanel {
 				}
 			}
 			*/
-			if(propertie.getSaveButton()!=null)
+			if (propertie.getSaveButton() != null)
 				propertie.getSaveButton().setEnabled(false);
 		}//end of while
-				
+
 		reloadButton.setEnabled(connected);
 		serverButton.setEnabled(connected);
 		selfButton.setEnabled(connected);

@@ -1,10 +1,10 @@
 /*
- * This file is part of the QuickServer library 
+ * This file is part of the QuickServer library
  * Copyright (C) 2003-2005 QuickServer.org
  *
  * Use, modification, copying and distribution of this software is subject to
- * the terms and conditions of the GNU Lesser General Public License. 
- * You should have received a copy of the GNU LGP License along with this 
+ * the terms and conditions of the GNU Lesser General Public License.
+ * You should have received a copy of the GNU LGP License along with this
  * library; if not, you can download a copy from <http://www.quickserver.org/>.
  *
  * For questions, suggestions, bug-reports, enhancement-requests etc.
@@ -14,20 +14,21 @@
 
 package echoserver;
 
-import java.net.*;
-import java.io.*;
 import org.quickserver.net.server.ClientExtendedEventHandler;
 import org.quickserver.net.server.ClientHandler;
-import java.util.logging.*;
+
+import java.io.IOException;
+import java.net.SocketException;
+import java.util.logging.Logger;
 
 public class EchoExtendedEventHandler implements ClientExtendedEventHandler {
-	private static Logger logger = 
+	private static Logger logger =
 			Logger.getLogger(EchoExtendedEventHandler.class.getName());
 
-	public void handleTimeout(ClientHandler handler) 
+	public void handleTimeout(ClientHandler handler)
 			throws SocketException, IOException {
 		handler.sendClientMsg("-ERR Timeout");
-		if(true) throw new SocketException();
+		if (true) throw new SocketException();
 	}
 
 	public void handleMaxAuthTry(ClientHandler handler) throws IOException {
@@ -36,7 +37,7 @@ public class EchoExtendedEventHandler implements ClientExtendedEventHandler {
 
 	public boolean handleMaxConnection(ClientHandler handler) throws IOException {
 		//for now lets reject all excess clients
-		if(true) {
+		if (true) {
 			handler.sendClientMsg("Server Busy - Max Connection Reached");
 			return false;
 		}

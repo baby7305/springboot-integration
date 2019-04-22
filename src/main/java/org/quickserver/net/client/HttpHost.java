@@ -1,10 +1,10 @@
 /*
- * This file is part of the QuickServer library 
+ * This file is part of the QuickServer library
  * Copyright (C) QuickServer.org
  *
  * Use, modification, copying and distribution of this software is subject to
- * the terms and conditions of the GNU Lesser General Public License. 
- * You should have received a copy of the GNU LGP License along with this 
+ * the terms and conditions of the GNU Lesser General Public License.
+ * You should have received a copy of the GNU LGP License along with this
  * library; if not, you can download a copy from <http://www.quickserver.org/>.
  *
  * For questions, suggestions, bug-reports, enhancement-requests etc.
@@ -19,52 +19,53 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * @since 1.4.8
  * @author Akshathkumar Shetty
+ * @since 1.4.8
  */
 public class HttpHost extends SocketBasedHost {
 	private String uri = "/";
 	private URL url;
 	private List<String> httpStatusCodeList;
-	
-	public HttpHost() {}
-	
+
+	public HttpHost() {
+	}
+
 	public HttpHost(String url) throws Exception {
 		this(new URL(url));
 	}
-	
+
 	public void setUrl(URL url) throws UnknownHostException {
 		int port = url.getPort();
 		this.url = url;
-		
-		if("https".equals(url.getProtocol())) {
+
+		if ("https".equals(url.getProtocol())) {
 			setSecure(true);
 		}
 		setUri(url.getPath());
-		if(url.getQuery()!=null) {
-			setUri(getUri()+"?"+url.getQuery());
+		if (url.getQuery() != null) {
+			setUri(getUri() + "?" + url.getQuery());
 		}
-		
-		if(port==-1) {
-			if(isSecure()) {
+
+		if (port == -1) {
+			if (isSecure()) {
 				port = 443;
 			} else {
 				port = 80;
 			}
 		}
-		
+
 		setInetSocketAddress(url.getHost(), port);
 	}
-	
-	public HttpHost(URL url) throws UnknownHostException {		
+
+	public HttpHost(URL url) throws UnknownHostException {
 		setUrl(url);
 	}
-	
+
 	public String toString() {
 		StringBuilder sb = new StringBuilder();
-		if(getName()!=null)sb.append(getName());
+		if (getName() != null) sb.append(getName());
 		sb.append("[");
-		if(isSecure()) {
+		if (isSecure()) {
 			sb.append("https://");
 		} else {
 			sb.append("http://");
@@ -81,14 +82,14 @@ public class HttpHost extends SocketBasedHost {
 		return uri;
 	}
 
-	public void setUri(String uri) {		
+	public void setUri(String uri) {
 		this.uri = uri;
 	}
 
 	public String getHttpStatusCode() {
-		if(httpStatusCodeList==null) {
+		if (httpStatusCodeList == null) {
 			return "200";
-		} else if(httpStatusCodeList.size()==1) {
+		} else if (httpStatusCodeList.size() == 1) {
 			return httpStatusCodeList.get(0);
 		} else {
 			return httpStatusCodeList.toString();
@@ -96,37 +97,37 @@ public class HttpHost extends SocketBasedHost {
 	}
 
 	public void setHttpStatusCode(String httpStatusCode) {
-		if(httpStatusCode!=null) {
-			if(httpStatusCode.indexOf(",")==-1) {
+		if (httpStatusCode != null) {
+			if (httpStatusCode.indexOf(",") == -1) {
 				addHttpStatusCode(httpStatusCode.trim());
 			} else {
 				String array[] = httpStatusCode.split(",");
-				for(int i=0;i<array.length;i++) {
-					if(array[i].length()!=0) {
+				for (int i = 0; i < array.length; i++) {
+					if (array[i].length() != 0) {
 						addHttpStatusCode(array[i].trim());
 					}
 				}
 			}
 		}
 	}
-	
+
 	public boolean isValidHttpStatusCode(String sc) {
-		if(httpStatusCodeList != null) {
+		if (httpStatusCodeList != null) {
 			return httpStatusCodeList.contains(sc);
 		} else {
 			return "200".equals(sc);//not set.. default
 		}
 	}
-	
+
 	public void addHttpStatusCode(String httpStatusCode) {
-		if(httpStatusCodeList==null) {
+		if (httpStatusCodeList == null) {
 			httpStatusCodeList = new ArrayList<String>();
 		}
 		httpStatusCodeList.add(httpStatusCode);
 	}
-	
+
 
 	public URL getUrl() {
 		return url;
-	}	
+	}
 }

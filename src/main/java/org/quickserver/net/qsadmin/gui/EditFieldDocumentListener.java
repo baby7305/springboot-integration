@@ -1,10 +1,10 @@
 /*
- * This file is part of the QuickServer library 
+ * This file is part of the QuickServer library
  * Copyright (C) QuickServer.org
  *
  * Use, modification, copying and distribution of this software is subject to
- * the terms and conditions of the GNU Lesser General Public License. 
- * You should have received a copy of the GNU LGP License along with this 
+ * the terms and conditions of the GNU Lesser General Public License.
+ * You should have received a copy of the GNU LGP License along with this
  * library; if not, you can download a copy from <http://www.quickserver.org/>.
  *
  * For questions, suggestions, bug-reports, enhancement-requests etc.
@@ -14,9 +14,9 @@
 
 package org.quickserver.net.qsadmin.gui;
 
-import java.awt.event.*;
-import javax.swing.event.*;
 import javax.swing.*;
+import javax.swing.event.DocumentEvent;
+import javax.swing.event.DocumentListener;
 
 public class EditFieldDocumentListener implements DocumentListener {
 	JButton saveButton;
@@ -26,11 +26,13 @@ public class EditFieldDocumentListener implements DocumentListener {
 	}
 
 	public void insertUpdate(DocumentEvent e) {
-		if(saveButton!=null) saveButton.setEnabled(true);
+		if (saveButton != null) saveButton.setEnabled(true);
 	}
+
 	public void removeUpdate(DocumentEvent e) {
-		if(saveButton!=null) saveButton.setEnabled(true);
+		if (saveButton != null) saveButton.setEnabled(true);
 	}
+
 	public void changedUpdate(DocumentEvent e) {
 		//System.out.println(">>Change Update");
 		//if(saveButton!=null) saveButton.setEnabled(true);

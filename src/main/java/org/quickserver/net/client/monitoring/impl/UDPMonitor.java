@@ -1,10 +1,10 @@
 /*
- * This file is part of the QuickServer library 
+ * This file is part of the QuickServer library
  * Copyright (C) QuickServer.org
  *
  * Use, modification, copying and distribution of this software is subject to
- * the terms and conditions of the GNU Lesser General Public License. 
- * You should have received a copy of the GNU LGP License along with this 
+ * the terms and conditions of the GNU Lesser General Public License.
+ * You should have received a copy of the GNU LGP License along with this
  * library; if not, you can download a copy from <http://www.quickserver.org/>.
  *
  * For questions, suggestions, bug-reports, enhancement-requests etc.
@@ -13,17 +13,17 @@
  */
 package org.quickserver.net.client.monitoring.impl;
 
-import java.io.IOException;
-import java.util.Date;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import org.quickserver.net.client.BlockingUDPClient;
 import org.quickserver.net.client.Host;
 import org.quickserver.net.client.SocketBasedHost;
 import org.quickserver.net.client.monitoring.HostMonitor;
 
+import java.io.IOException;
+import java.util.Date;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
 /**
- *
  * @author mukundan
  */
 public class UDPMonitor implements HostMonitor {
@@ -33,7 +33,7 @@ public class UDPMonitor implements HostMonitor {
 		char result = 'U';
 		BlockingUDPClient udpClient = new BlockingUDPClient();
 		try {
-			SocketBasedHost udpHost = (SocketBasedHost) host;			
+			SocketBasedHost udpHost = (SocketBasedHost) host;
 
 			String hostName = udpHost.getInetSocketAddress().getHostName();
 			int port = udpHost.getInetSocketAddress().getPort();

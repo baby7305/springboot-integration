@@ -1,10 +1,10 @@
 /*
- * This file is part of the QuickServer library 
+ * This file is part of the QuickServer library
  * Copyright (C) QuickServer.org
  *
  * Use, modification, copying and distribution of this software is subject to
- * the terms and conditions of the GNU Lesser General Public License. 
- * You should have received a copy of the GNU LGP License along with this 
+ * the terms and conditions of the GNU Lesser General Public License.
+ * You should have received a copy of the GNU LGP License along with this
  * library; if not, you can download a copy from <http://www.quickserver.org/>.
  *
  * For questions, suggestions, bug-reports, enhancement-requests etc.
@@ -14,19 +14,25 @@
 
 package org.quickserver.net.server.impl;
 
+import org.quickserver.net.AppException;
+import org.quickserver.net.ConnectionLostException;
 import org.quickserver.net.server.*;
-import org.quickserver.net.*;
-import org.quickserver.util.*;
-import org.quickserver.util.io.*;
+import org.quickserver.util.Assertion;
+import org.quickserver.util.MyString;
+import org.quickserver.util.io.ByteBufferInputStream;
+import org.quickserver.util.io.ByteBufferOutputStream;
 
+import javax.net.ssl.SSLEngineResult;
 import java.io.*;
-import java.net.*;
-import java.util.*;
-import java.util.logging.*;
-
-import java.nio.*;
-import java.nio.channels.*;
-import javax.net.ssl.*;
+import java.net.SocketException;
+import java.nio.ByteBuffer;
+import java.nio.channels.CancelledKeyException;
+import java.nio.channels.ClosedChannelException;
+import java.nio.channels.SelectionKey;
+import java.nio.channels.SocketChannel;
+import java.util.ArrayList;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 public class NonBlockingClientHandler extends BasicClientHandler {
 	private static final Logger logger = Logger.getLogger(NonBlockingClientHandler.class.getName());
@@ -58,30 +64,36 @@ public class NonBlockingClientHandler extends BasicClientHandler {
 
 	/**
 	 * Sets the flag to wakeup Selector After RegisterForWrite is called.
+	 *
 	 * @since 1.4.7
 	 */
 	public static void setWakeupSelectorAfterRegisterWrite(boolean flag) {
 		wakeupSelectorAfterRegisterWrite = flag;
 	}
+
 	/**
 	 * Returns wakeupSelectorAfterRegisterWrite the flag that controls if wakeup is called on Selector
-	 * after RegisterForWrite is called. 
+	 * after RegisterForWrite is called.
+	 *
 	 * @since 1.4.7
 	 */
 	public static boolean getWakeupSelectorAfterRegisterWrite() {
 		return wakeupSelectorAfterRegisterWrite;
 	}
-	
+
 	/**
 	 * Sets the flag to wakeup Selector After RegisterForRead is called.
+	 *
 	 * @since 1.4.7
 	 */
 	public static void setWakeupSelectorAfterRegisterRead(boolean flag) {
 		wakeupSelectorAfterRegisterRead = flag;
 	}
+
 	/**
 	 * Returns wakeupSelectorAfterRegisterRead the flag that controls if wakeup is called on Selector
-	 * after RegisterForRead is called. 
+	 * after RegisterForRead is called.
+	 *
 	 * @since 1.4.7
 	 */
 	public static boolean getWakeupSelectorAfterRegisterRead() {
@@ -90,14 +102,17 @@ public class NonBlockingClientHandler extends BasicClientHandler {
 
 	/**
 	 * Sets the maximum count of thread allowed to run objects of this class at a time.
+	 *
 	 * @since 1.4.7
 	 */
 	public static void setMaxThreadAccessCount(int count) {
-		if(count<3 && count!=-1) throw new IllegalArgumentException("Value should be >=3 or -1");
+		if (count < 3 && count != -1) throw new IllegalArgumentException("Value should be >=3 or -1");
 		maxThreadAccessCount = count;
 	}
+
 	/**
 	 * Returns the maximum count of thread allowed to run objects of this class at a time.
+	 *
 	 * @since 1.4.7
 	 */
 	public static int getMaxThreadAccessCount() {
@@ -117,58 +132,58 @@ public class NonBlockingClientHandler extends BasicClientHandler {
 
 	public void clean() {
 		logger.log(Level.FINEST, "Starting clean - {0}", getName());
-		if(threadAccessCount!=0) {
+		if (threadAccessCount != 0) {
 			logger.log(Level.WARNING, "Thread Access Count was not 0!: {0}", threadAccessCount);
-			if(Assertion.isEnabled()) {
+			if (Assertion.isEnabled()) {
 				assertionSystemExit();
 			}
 			threadAccessCount = 0;
 		}
-				
-		while(readByteBuffer.isEmpty()==false) {
+
+		while (readByteBuffer.isEmpty() == false) {
 			try {
 				getServer().getByteBufferPool().returnObject(
-					readByteBuffer.remove(0));	
-			} catch(Exception er) {
-				logger.log(Level.WARNING, "Error in returning read ByteBuffer to pool: "+er, er);
+						readByteBuffer.remove(0));
+			} catch (Exception er) {
+				logger.log(Level.WARNING, "Error in returning read ByteBuffer to pool: " + er, er);
 				break;
 			}
 		}
 
-		while(writeByteBuffer.isEmpty()==false) {
+		while (writeByteBuffer.isEmpty() == false) {
 			try {
 				getServer().getByteBufferPool().returnObject(
-					writeByteBuffer.remove(0));	
-			} catch(Exception er) {
-				appLogger.log(Level.WARNING, "Error in returning write ByteBuffer to pool: "+er, er);
+						writeByteBuffer.remove(0));
+			} catch (Exception er) {
+				appLogger.log(Level.WARNING, "Error in returning write ByteBuffer to pool: " + er, er);
 				break;
 			}
 		}
 
-		if(peerNetData!=null) {
+		if (peerNetData != null) {
 			try {
 				getServer().getByteBufferPool().returnObject(peerNetData);
-			} catch(Exception er) {
-				appLogger.log(Level.WARNING, "Error in returning peerNetData to pool: "+er, er);
+			} catch (Exception er) {
+				appLogger.log(Level.WARNING, "Error in returning peerNetData to pool: " + er, er);
 			}
 		}
 
-		if(selectionKey!=null) {
+		if (selectionKey != null) {
 			selectionKey.cancel();
 			selectionKey.selector().wakeup();
 			selectionKey = null;
 		}
-		willReturn = false;	
+		willReturn = false;
 		waitingForFinalWrite = false;
 		socketChannel = null;
-		if(byteBufferOutputStream!=null) {
+		if (byteBufferOutputStream != null) {
 			byteBufferOutputStream.close();
 		}
 
 		super.clean();
 
 		clientWriteHandler = null;//1.4.5		
-		byteBufferOutputStream = null;		
+		byteBufferOutputStream = null;
 
 		sslShutdown = false;
 		logger.log(Level.FINEST, "Finished clean - {0}", getName());
@@ -182,20 +197,20 @@ public class NonBlockingClientHandler extends BasicClientHandler {
 
 	protected void setInputStream(InputStream in) throws IOException {
 		this.in = in;
-		if(getDataMode(DataType.IN) == DataMode.STRING) {
+		if (getDataMode(DataType.IN) == DataMode.STRING) {
 			b_in = null;
 			o_in = null;
 			bufferedReader = null;
-		} else if(getDataMode(DataType.IN) == DataMode.OBJECT) {
+		} else if (getDataMode(DataType.IN) == DataMode.OBJECT) {
 			b_in = null;
 			bufferedReader = null;
 			o_in = new ObjectInputStream(in);
-		} else if(getDataMode(DataType.IN) == DataMode.BYTE || 
+		} else if (getDataMode(DataType.IN) == DataMode.BYTE ||
 				getDataMode(DataType.IN) == DataMode.BINARY) {
 			o_in = null;
 			bufferedReader = null;
 			b_in = null;
-		} 
+		}
 	}
 
 	public BufferedReader getBufferedReader() {
@@ -204,54 +219,54 @@ public class NonBlockingClientHandler extends BasicClientHandler {
 
 	public void closeConnection() {
 		logger.finest("inside");
-		synchronized(this) {
-			if(connection==false) return;
-			if(waitingForFinalWrite) return;
-			if(getSelectionKey()!=null && getSelectionKey().isValid() && lost == false) {
+		synchronized (this) {
+			if (connection == false) return;
+			if (waitingForFinalWrite) return;
+			if (getSelectionKey() != null && getSelectionKey().isValid() && lost == false) {
 				waitingForFinalWrite = true;
 			} else {
 				connection = false;
 			}
 		}
 
-		try	{			
-			if(getSocketChannel()!=null && socket!=null) {
-				if(waitingForFinalWrite) {
-					try {					
-						waitTillFullyWritten();	
-					} catch(Exception error) {
-						logger.warning("Error in waitingForFinalWrite : "+error);
-						if(logger.isLoggable(Level.FINE)) {
-							logger.fine("StackTrace:\n"+MyString.getStackTrace(error));
+		try {
+			if (getSocketChannel() != null && socket != null) {
+				if (waitingForFinalWrite) {
+					try {
+						waitTillFullyWritten();
+					} catch (Exception error) {
+						logger.warning("Error in waitingForFinalWrite : " + error);
+						if (logger.isLoggable(Level.FINE)) {
+							logger.fine("StackTrace:\n" + MyString.getStackTrace(error));
 						}
 					}
 				}//end of waitingForFinalWrite
 
-				if(isSecure()==true) {
+				if (isSecure() == true) {
 					sslShutdown = true;
-					if(lost == false && sslEngine.isOutboundDone()==false) {
+					if (lost == false && sslEngine.isOutboundDone() == false) {
 						logger.finest("SSL isOutboundDone is false");
-						if(byteBufferOutputStream.doShutdown()==false) {
+						if (byteBufferOutputStream.doShutdown() == false) {
 							return;
 						}
-					} else if(sslEngine.isOutboundDone()) {
+					} else if (sslEngine.isOutboundDone()) {
 						logger.finest("SSL Outbound is done.");
 					}
-				} 
-			
-				doPostCloseActivity();				
+				}
+
+				doPostCloseActivity();
 			}//if socket			
-		} catch(IOException e) {
-			logger.warning("Error in closeConnection : "+e);
-			if(logger.isLoggable(Level.FINE)) {
-				logger.fine("StackTrace:\n"+MyString.getStackTrace(e));
+		} catch (IOException e) {
+			logger.warning("Error in closeConnection : " + e);
+			if (logger.isLoggable(Level.FINE)) {
+				logger.fine("StackTrace:\n" + MyString.getStackTrace(e));
 			}
-		} catch(NullPointerException npe) {
-			logger.fine("NullPointerException: "+npe);
-			if(logger.isLoggable(Level.FINE)) {
-				logger.fine("StackTrace:\n"+MyString.getStackTrace(npe));
+		} catch (NullPointerException npe) {
+			logger.fine("NullPointerException: " + npe);
+			if (logger.isLoggable(Level.FINE)) {
+				logger.fine("StackTrace:\n" + MyString.getStackTrace(npe));
 			}
-		} 
+		}
 	}
 
 	private void doPostCloseActivity() throws IOException {
@@ -259,15 +274,15 @@ public class NonBlockingClientHandler extends BasicClientHandler {
 		byteBufferOutputStream.forceNotify();
 		getSelectionKey().cancel();
 
-		if(getServer()!=null) {
+		if (getServer() != null) {
 			getServer().getSelector().wakeup();
-		}		
+		}
 
-		synchronized(this) {
-			if(hasEvent(ClientEvent.MAX_CON)==false) {
+		synchronized (this) {
+			if (hasEvent(ClientEvent.MAX_CON) == false) {
 				notifyCloseOrLost();
 			}
-			if(getSocketChannel().isOpen()) {
+			if (getSocketChannel().isOpen()) {
 				logger.finest("Closing SocketChannel");
 				getSocketChannel().close();
 			}
@@ -275,57 +290,58 @@ public class NonBlockingClientHandler extends BasicClientHandler {
 	}
 
 	public boolean closeIfSSLOutboundDone() {
-		if(isSecure()==false) throw new IllegalStateException("Client is not in secure mode!");
+		if (isSecure() == false) throw new IllegalStateException("Client is not in secure mode!");
 
-		if(sslEngine.isOutboundDone()) {
+		if (sslEngine.isOutboundDone()) {
 			logger.finest("SSL Outbound is done.");
 			try {
-				if(getSocketChannel().isOpen()) {
+				if (getSocketChannel().isOpen()) {
 					logger.finest("Closing SocketChannel");
 					getSocketChannel().close();
 				}
-			} catch(IOException e) {
-				logger.fine("IGNORE: Error in Closing SocketChannel: "+e);
+			} catch (IOException e) {
+				logger.fine("IGNORE: Error in Closing SocketChannel: " + e);
 			}
 			return true;
 		} else {
 			logger.finest("SSL Outbound is not done.");
 			return false;
-		}		
+		}
 	}
 
-	
+
 	/**
 	 * waitTillFullyWritten
+	 *
 	 * @since 1.4.7
 	 */
 	public void waitTillFullyWritten() {
 		Object waitLock = new Object();
-		if(byteBufferOutputStream.isDataAvailableForWrite(waitLock)) {
-			if(ByteBufferOutputStream.isLoggable(Level.FINEST)) {
-				logger.finest("Waiting "+getName());
+		if (byteBufferOutputStream.isDataAvailableForWrite(waitLock)) {
+			if (ByteBufferOutputStream.isLoggable(Level.FINEST)) {
+				logger.finest("Waiting " + getName());
 			}
 			try {
-				synchronized(waitLock) {
-					waitLock.wait(1000*60*2);//2 min max
+				synchronized (waitLock) {
+					waitLock.wait(1000 * 60 * 2);//2 min max
 				}
-			} catch(InterruptedException ie) {
-				logger.warning("Error: "+ie);
+			} catch (InterruptedException ie) {
+				logger.warning("Error: " + ie);
 			}
-			if(ByteBufferOutputStream.isLoggable(Level.FINEST)) {
-				logger.finest("Done. "+getName());
+			if (ByteBufferOutputStream.isLoggable(Level.FINEST)) {
+				logger.finest("Done. " + getName());
 			}
 		}
 	}
 
 	public void run() {
-		if(unprocessedClientEvents.isEmpty()) {
+		if (unprocessedClientEvents.isEmpty()) {
 			logger.finest("No unprocessed ClientEvents!");
 			return;
 		}
 
-		synchronized(this) {
-			if(willReturn) {
+		synchronized (this) {
+			if (willReturn) {
 				return;
 			} else {
 				threadAccessCount++;
@@ -333,22 +349,22 @@ public class NonBlockingClientHandler extends BasicClientHandler {
 		}
 
 		ClientEvent currentEvent = (ClientEvent) unprocessedClientEvents.poll();
-		if(currentEvent==null) {
+		if (currentEvent == null) {
 			threadEvent.set(null);
 			logger.finest("No unprocessed ClientEvents! pool was null");
 			return;
 		}
 
-		if(logger.isLoggable(Level.FINEST)) {
+		if (logger.isLoggable(Level.FINEST)) {
 			StringBuilder sb = new StringBuilder();
 			sb.append("Running ").append(getName());
 			sb.append(" using ");
 			sb.append(Thread.currentThread().getName());
 			sb.append(" for ");
 
-			synchronized(clientEvents) {
-				if(clientEvents.size()>1) {
-					sb.append(currentEvent+", Current Events - "+clientEvents);
+			synchronized (clientEvents) {
+				if (clientEvents.size() > 1) {
+					sb.append(currentEvent + ", Current Events - " + clientEvents);
 				} else {
 					sb.append(currentEvent);
 				}
@@ -356,178 +372,178 @@ public class NonBlockingClientHandler extends BasicClientHandler {
 			logger.finest(sb.toString());
 		}
 
-		logger.finest("threadAccessCount: "+threadAccessCount);
+		logger.finest("threadAccessCount: " + threadAccessCount);
 
-		threadEvent.set(currentEvent);	
+		threadEvent.set(currentEvent);
 
 		try {
-			if(maxThreadAccessCount!=-1 && threadAccessCount>maxThreadAccessCount) {
-				logger.warning("ThreadAccessCount can't go beyond "+maxThreadAccessCount+": "+threadAccessCount);
-				if(Assertion.isEnabled()) {
-					throw new AssertionError("ThreadAccessCount can't go beyond "+maxThreadAccessCount+": "+threadAccessCount);
+			if (maxThreadAccessCount != -1 && threadAccessCount > maxThreadAccessCount) {
+				logger.warning("ThreadAccessCount can't go beyond " + maxThreadAccessCount + ": " + threadAccessCount);
+				if (Assertion.isEnabled()) {
+					throw new AssertionError("ThreadAccessCount can't go beyond " + maxThreadAccessCount + ": " + threadAccessCount);
 				}
 				return;
 			}
 
-			if(socket==null)
+			if (socket == null)
 				throw new SocketException("Socket was null!");
 
-			if(getThreadEvent()==ClientEvent.ACCEPT || 
-					getThreadEvent()==ClientEvent.MAX_CON) {
+			if (getThreadEvent() == ClientEvent.ACCEPT ||
+					getThreadEvent() == ClientEvent.MAX_CON) {
 				prepareForRun();
-				Assertion.affirm(willReturn==false, "WillReturn has to be false!: "+willReturn);
+				Assertion.affirm(willReturn == false, "WillReturn has to be false!: " + willReturn);
 			}
 
-			if(getThreadEvent()==ClientEvent.MAX_CON) {
+			if (getThreadEvent() == ClientEvent.MAX_CON) {
 				processMaxConnection(currentEvent);
 			}
 
 			try {
-				if(getThreadEvent()==ClientEvent.ACCEPT) {					
+				if (getThreadEvent() == ClientEvent.ACCEPT) {
 					registerForRead();
 					clientEventHandler.gotConnected(this);
 
-					if(authorised == false) {						
-						if(clientAuthenticationHandler==null && authenticator == null) {
+					if (authorised == false) {
+						if (clientAuthenticationHandler == null && authenticator == null) {
 							authorised = true;
-							logger.finest("No Authenticator "+getName()+" so return thread.");
+							logger.finest("No Authenticator " + getName() + " so return thread.");
 						} else {
-							if(clientAuthenticationHandler!=null) {
+							if (clientAuthenticationHandler != null) {
 								AuthStatus authStatus = null;
 								do {
 									authStatus = processAuthorisation();
-								} while(authStatus==AuthStatus.FAILURE);
+								} while (authStatus == AuthStatus.FAILURE);
 
-								if(authStatus==AuthStatus.SUCCESS)
+								if (authStatus == AuthStatus.SUCCESS)
 									authorised = true;
 							} else {
 								processAuthorisation();
 							}
-							if(authorised)
-								logger.finest("Authentication done "+getName()+", so return thread.");
+							if (authorised)
+								logger.finest("Authentication done " + getName() + ", so return thread.");
 							else
-								logger.finest("askAuthentication() done "+getName()+", so return thread.");
+								logger.finest("askAuthentication() done " + getName() + ", so return thread.");
 						}
 					}//end authorised
 					returnThread(); //return thread to pool
 					return;
-				}			
-				
-				if(connection && getThreadEvent()==ClientEvent.READ) {
-					if(processRead()) return;
 				}
 
-				if(connection && getThreadEvent()==ClientEvent.WRITE) {
-					if(processWrite()) return;
+				if (connection && getThreadEvent() == ClientEvent.READ) {
+					if (processRead()) return;
 				}
 
-			} catch(SocketException e) {
-				appLogger.finest("SocketException - Client [" + 
-					getHostAddress() +"]: "	+ e.getMessage());
+				if (connection && getThreadEvent() == ClientEvent.WRITE) {
+					if (processWrite()) return;
+				}
+
+			} catch (SocketException e) {
+				appLogger.finest("SocketException - Client [" +
+						getHostAddress() + "]: " + e.getMessage());
 				//e.printStackTrace();
 				lost = true;
-			} catch(AppException e) {
+			} catch (AppException e) {
 				//errors from Application
-				appLogger.finest("AppException "+Thread.currentThread().getName()+": " 
-					+ e.getMessage());		
-			} catch(javax.net.ssl.SSLException e) {
+				appLogger.finest("AppException " + Thread.currentThread().getName() + ": "
+						+ e.getMessage());
+			} catch (javax.net.ssl.SSLException e) {
 				lost = true;
-				if(Assertion.isEnabled()) {
-					appLogger.info("SSLException - Client ["+getHostAddress()
-						+"] "+Thread.currentThread().getName()+": " + e);
+				if (Assertion.isEnabled()) {
+					appLogger.info("SSLException - Client [" + getHostAddress()
+							+ "] " + Thread.currentThread().getName() + ": " + e);
 				} else {
-					appLogger.warning("SSLException - Client ["+
-						getHostAddress()+"]: "+e);
+					appLogger.warning("SSLException - Client [" +
+							getHostAddress() + "]: " + e);
 				}
-			} catch(ConnectionLostException e) {
+			} catch (ConnectionLostException e) {
 				lost = true;
-				if(e.getMessage()!=null)
+				if (e.getMessage() != null)
 					appLogger.finest("Connection lost " +
-						Thread.currentThread().getName()+": " + e.getMessage());
+							Thread.currentThread().getName() + ": " + e.getMessage());
 				else
-					appLogger.finest("Connection lost "+Thread.currentThread().getName());
-			} catch(ClosedChannelException e) {
+					appLogger.finest("Connection lost " + Thread.currentThread().getName());
+			} catch (ClosedChannelException e) {
 				lost = true;
-				appLogger.finest("Channel closed "+Thread.currentThread().getName()+": " + e);
-			} catch(IOException e) {
+				appLogger.finest("Channel closed " + Thread.currentThread().getName() + ": " + e);
+			} catch (IOException e) {
 				lost = true;
-				appLogger.fine("IOError "+Thread.currentThread().getName()+": " + e);
-			} catch(AssertionError er) {
-				logger.warning("[AssertionError] "+getName()+" "+er);
-				if(logger.isLoggable(Level.FINEST)) {
-					logger.finest("StackTrace "+Thread.currentThread().getName()+": "+MyString.getStackTrace(er));
+				appLogger.fine("IOError " + Thread.currentThread().getName() + ": " + e);
+			} catch (AssertionError er) {
+				logger.warning("[AssertionError] " + getName() + " " + er);
+				if (logger.isLoggable(Level.FINEST)) {
+					logger.finest("StackTrace " + Thread.currentThread().getName() + ": " + MyString.getStackTrace(er));
 				}
 				assertionSystemExit();
-			} catch(RuntimeException re) {
-				logger.warning("[RuntimeException] "+MyString.getStackTrace(re));
-				if(Assertion.isEnabled()) {
+			} catch (RuntimeException re) {
+				logger.warning("[RuntimeException] " + MyString.getStackTrace(re));
+				if (Assertion.isEnabled()) {
 					assertionSystemExit();
 				}
 				lost = true;
-			} catch(Throwable er) {
-				logger.warning("[Error] "+er);
-				if(logger.isLoggable(Level.FINEST)) {
-					logger.finest("StackTrace "+Thread.currentThread().getName()+": "+MyString.getStackTrace(er));
+			} catch (Throwable er) {
+				logger.warning("[Error] " + er);
+				if (logger.isLoggable(Level.FINEST)) {
+					logger.finest("StackTrace " + Thread.currentThread().getName() + ": " + MyString.getStackTrace(er));
 				}
-				if(Assertion.isEnabled()) {
+				if (Assertion.isEnabled()) {
 					assertionSystemExit();
 				}
 				lost = true;
-			} 
-			
-			if(getThreadEvent()!=ClientEvent.MAX_CON) {
+			}
+
+			if (getThreadEvent() != ClientEvent.MAX_CON) {
 				notifyCloseOrLost();
 			}
-			
-			if(connection) {
-				logger.finest(Thread.currentThread().getName()+" calling closeConnection()");
+
+			if (connection) {
+				logger.finest(Thread.currentThread().getName() + " calling closeConnection()");
 				closeConnection();
-			} 
-			
-			if(connection==true && lost==true && waitingForFinalWrite) {
+			}
+
+			if (connection == true && lost == true && waitingForFinalWrite) {
 				byteBufferOutputStream.forceNotify();
 			}
-		} catch(javax.net.ssl.SSLException se) {
-			logger.warning("SSLException "+Thread.currentThread().getName()+" - " + se);
-		} catch(IOException ie) {
-			logger.warning("IOError "+Thread.currentThread().getName()+" - Closing Client : " + ie);
-		} catch(RuntimeException re) {
-			logger.warning("[RuntimeException] "+getName()+" "+Thread.currentThread().getName()+" - "+MyString.getStackTrace(re));
-			if(Assertion.isEnabled()) {
+		} catch (javax.net.ssl.SSLException se) {
+			logger.warning("SSLException " + Thread.currentThread().getName() + " - " + se);
+		} catch (IOException ie) {
+			logger.warning("IOError " + Thread.currentThread().getName() + " - Closing Client : " + ie);
+		} catch (RuntimeException re) {
+			logger.warning("[RuntimeException] " + getName() + " " + Thread.currentThread().getName() + " - " + MyString.getStackTrace(re));
+			if (Assertion.isEnabled()) {
 				assertionSystemExit();
 			}
-		} catch(Exception e) {
-			logger.warning("Error "+Thread.currentThread().getName()+" - Event:"+getThreadEvent()+" - Socket:"+socket+" : "+e);
-			logger.fine("StackTrace: "+getName()+"\n"+MyString.getStackTrace(e));
-			if(Assertion.isEnabled()) {
+		} catch (Exception e) {
+			logger.warning("Error " + Thread.currentThread().getName() + " - Event:" + getThreadEvent() + " - Socket:" + socket + " : " + e);
+			logger.fine("StackTrace: " + getName() + "\n" + MyString.getStackTrace(e));
+			if (Assertion.isEnabled()) {
 				assertionSystemExit();
 			}
-		} catch(Throwable e) {
-			logger.warning("Error "+Thread.currentThread().getName()+" - Event:"+getThreadEvent()+" - Socket:"+socket+" : "+e);
-			logger.fine("StackTrace: "+getName()+"\n"+MyString.getStackTrace(e));
-			if(Assertion.isEnabled()) {
+		} catch (Throwable e) {
+			logger.warning("Error " + Thread.currentThread().getName() + " - Event:" + getThreadEvent() + " - Socket:" + socket + " : " + e);
+			logger.fine("StackTrace: " + getName() + "\n" + MyString.getStackTrace(e));
+			if (Assertion.isEnabled()) {
 				assertionSystemExit();
 			}
 		}
 
-		synchronized(this) {
-			try	{
-				if(getSelectionKey()!=null && getSelectionKey().isValid()) {
+		synchronized (this) {
+			try {
+				if (getSelectionKey() != null && getSelectionKey().isValid()) {
 					logger.finest("Canceling SelectionKey");
 					getSelectionKey().cancel();
 				}
 
-				if(socket!=null && socket.isClosed()==false) {
+				if (socket != null && socket.isClosed() == false) {
 					logger.finest("Closing Socket");
 					socket.close();
 				}
 
-				if(getSocketChannel()!=null && getSocketChannel().isOpen()) {
+				if (getSocketChannel() != null && getSocketChannel().isOpen()) {
 					logger.finest("Closing SocketChannel");
 					socketChannel.close();
-				}				
-			} catch(Exception re) {
-				logger.warning("Error closing Socket/Channel: " +re);
+				}
+			} catch (Exception re) {
+				logger.warning("Error closing Socket/Channel: " + re);
 			}
 		}//end synchronized
 
@@ -535,18 +551,18 @@ public class NonBlockingClientHandler extends BasicClientHandler {
 		returnClientData();
 
 		boolean returnClientHandler = false;
-		synchronized(lockObj) {
+		synchronized (lockObj) {
 			returnThread();
 			returnClientHandler = checkReturnClientHandler();
 		}
 
-		if(returnClientHandler) {
+		if (returnClientHandler) {
 			returnClientHandler(); //return to pool
 		}
 	}
 
 	protected boolean checkReturnClientHandler() {
-		if(willReturn==false) {
+		if (willReturn == false) {
 			willReturn = true;
 			return true;
 		}
@@ -555,10 +571,11 @@ public class NonBlockingClientHandler extends BasicClientHandler {
 
 	/**
 	 * Process read
+	 *
 	 * @return value indicates if the thread should return form run()
 	 */
 	private boolean processRead() throws Exception {
-		if(doRead()) {
+		if (doRead()) {
 			returnThread(); //return to pool
 			return true;
 		} else {
@@ -569,15 +586,15 @@ public class NonBlockingClientHandler extends BasicClientHandler {
 	private boolean doRead() throws Exception {
 		int count = 0;
 		int fullCount = 0;
-		
-		while(true) {
+
+		while (true) {
 			try {
-				if(peerNetData==null) {
+				if (peerNetData == null) {
 					peerNetData = (ByteBuffer) getServer().getByteBufferPool().borrowObject();
 				}
 
 				count = getSocketChannel().read(peerNetData);
-				if(count<0) {
+				if (count < 0) {
 					//logger.finest("SocketChannel read was "+count+"!");
 					getServer().getByteBufferPool().returnObject(peerNetData);
 					peerNetData = null;
@@ -590,28 +607,28 @@ public class NonBlockingClientHandler extends BasicClientHandler {
 				ByteBuffer peerAppData = null;
 
 				//--
-				if(sslEngine!=null) {
+				if (sslEngine != null) {
 					SSLEngineResult res;
-					peerAppData = (ByteBuffer) 
+					peerAppData = (ByteBuffer)
 							getServer().getByteBufferPool().borrowObject();
-					do {						
+					do {
 						res = sslEngine.unwrap(peerNetData, peerAppData);
 						logger.info("Unwrapping:\n" + res);
-					} while(res.getStatus() == SSLEngineResult.Status.OK &&
+					} while (res.getStatus() == SSLEngineResult.Status.OK &&
 							res.getHandshakeStatus() == SSLEngineResult.HandshakeStatus.NEED_UNWRAP &&
 							res.bytesProduced() == 0);
 
-					if(res.getHandshakeStatus() == SSLEngineResult.HandshakeStatus.FINISHED) {
+					if (res.getHandshakeStatus() == SSLEngineResult.HandshakeStatus.FINISHED) {
 						logger.info("HandshakeStatus.FINISHED!");
 						finishInitialHandshake();
 					}
 
-					if(peerAppData.position() == 0 && 
+					if (peerAppData.position() == 0 &&
 							res.getStatus() == SSLEngineResult.Status.OK &&
 							peerNetData.hasRemaining()) {
 						logger.info("peerNetData hasRemaining and pos=0!");
 						res = sslEngine.unwrap(peerNetData, peerAppData);
-						logger.info("Unwrapping:\n" + res);			
+						logger.info("Unwrapping:\n" + res);
 					}
 
 					/*
@@ -620,9 +637,9 @@ public class NonBlockingClientHandler extends BasicClientHandler {
 					status = res.getStatus();
 					handshakeStatus = res.getHandshakeStatus();
 
-					if(status != SSLEngineResult.Status.BUFFER_OVERFLOW) {
+					if (status != SSLEngineResult.Status.BUFFER_OVERFLOW) {
 						logger.warning("Buffer overflow: " + res.toString());
-					} else if(status == SSLEngineResult.Status.CLOSED) {
+					} else if (status == SSLEngineResult.Status.CLOSED) {
 						logger.fine("Connection is being closed by peer.");
 						lost = true;
 						System.out.println("NEdd to code for shutdow of SSL");
@@ -632,14 +649,14 @@ public class NonBlockingClientHandler extends BasicClientHandler {
 					peerNetData.compact();
 					peerAppData.flip();
 
-					if(handshakeStatus == SSLEngineResult.HandshakeStatus.NEED_TASK ||
+					if (handshakeStatus == SSLEngineResult.HandshakeStatus.NEED_TASK ||
 							handshakeStatus == SSLEngineResult.HandshakeStatus.NEED_WRAP ||
 							handshakeStatus == SSLEngineResult.HandshakeStatus.FINISHED) {
 						doHandshake();
 					}
 
 					//return peerAppData.remaining();
-					logger.fine("peerAppData.remaining(): "+peerAppData.remaining());
+					logger.fine("peerAppData.remaining(): " + peerAppData.remaining());
 				} else {
 					peerAppData = peerNetData;
 					peerNetData = null;
@@ -649,53 +666,53 @@ public class NonBlockingClientHandler extends BasicClientHandler {
 				readByteBuffer.add(peerAppData);
 				peerAppData = null;
 
-			} catch(Exception error) {
-				logger.finest("Error in data read: "+error);
-				if(sslEngine!=null) sslEngine.closeInbound();
+			} catch (Exception error) {
+				logger.finest("Error in data read: " + error);
+				if (sslEngine != null) sslEngine.closeInbound();
 				lost = true;
-				synchronized(getInputStream()) {
+				synchronized (getInputStream()) {
 					getInputStream().notifyAll();
 				}
 				throw error;
-			} 
+			}
 
-			if(count==0) break;
+			if (count == 0) break;
 		}//end while
 
-		if(count<0) {
-			logger.finest("SocketChannel read was "+count+"!");
-			if(sslEngine!=null) sslEngine.closeInbound();
+		if (count < 0) {
+			logger.finest("SocketChannel read was " + count + "!");
+			if (sslEngine != null) sslEngine.closeInbound();
 			lost = true;
-			synchronized(getInputStream()) {
+			synchronized (getInputStream()) {
 				getInputStream().notifyAll();
 			}
 		} else {
-			logger.finest(fullCount+" bytes read");
-			if(fullCount!=0) {
+			logger.finest(fullCount + " bytes read");
+			if (fullCount != 0) {
 				updateLastCommunicationTime();
-				synchronized(getInputStream()) {
+				synchronized (getInputStream()) {
 					getInputStream().notify(); //if any are waiting
 				}
-				if(hasEvent(ClientEvent.ACCEPT) == false) {
+				if (hasEvent(ClientEvent.ACCEPT) == false) {
 					processGotDataInBuffers();
 				}
 			}
 
 			//check if any data was read but not yet processed
-			while(getInputStream().available()>0) {
+			while (getInputStream().available() > 0) {
 				logger.finest("Sending again for processing...");
-				if(hasEvent(ClientEvent.ACCEPT) == false) {
+				if (hasEvent(ClientEvent.ACCEPT) == false) {
 					processGotDataInBuffers();
 					break;
 				} else {
-					synchronized(getInputStream()) {
-						getInputStream().notifyAll();									
+					synchronized (getInputStream()) {
+						getInputStream().notifyAll();
 					}
-					Thread.sleep(100);								
-				}							
+					Thread.sleep(100);
+				}
 			}
 
-			if(connection) {
+			if (connection) {
 				registerForRead();
 				//getSelectionKey().selector().wakeup();
 				return true;
@@ -707,23 +724,24 @@ public class NonBlockingClientHandler extends BasicClientHandler {
 
 	/**
 	 * Process write
+	 *
 	 * @return value indicates if the thread should return form run()
 	 */
 	private boolean processWrite() throws IOException {
-		if(doWrite()) {
+		if (doWrite()) {
 			returnThread(); //return to pool
 			return true;
 		} else {
 			return false;
-		}		
+		}
 	}
 
 	private boolean doWrite() throws IOException {
-		if(sslShutdown) {
-			if(byteBufferOutputStream.doShutdown()==false) {
+		if (sslShutdown) {
+			if (byteBufferOutputStream.doShutdown() == false) {
 				return true;
 			}
-			
+
 			doPostCloseActivity();
 
 			logger.finest("We don't have connection, lets return all resources.");
@@ -733,14 +751,14 @@ public class NonBlockingClientHandler extends BasicClientHandler {
 		updateLastCommunicationTime();
 
 		boolean flag = byteBufferOutputStream.writeAllByteBuffer();
-		
-		if(flag==false) {
+
+		if (flag == false) {
 			registerWrite();
-		} else if(/*flag==true && */clientWriteHandler!=null) {
+		} else if (/*flag==true && */clientWriteHandler != null) {
 			clientWriteHandler.handleWrite(this);
 		}
 
-		if(connection) {
+		if (connection) {
 			return true;
 		} else {
 			logger.finest("We don't have connection, lets return all resources.");
@@ -752,124 +770,125 @@ public class NonBlockingClientHandler extends BasicClientHandler {
 		//System.out.println("returnThread..");
 		//(new Exception()).printStackTrace();
 		threadAccessCount--;
-		Assertion.affirm(threadAccessCount>=0, "ThreadAccessCount went less the 0! Value: "+threadAccessCount);
+		Assertion.affirm(threadAccessCount >= 0, "ThreadAccessCount went less the 0! Value: " + threadAccessCount);
 		//return is done at ClientThread end
-		removeEvent((ClientEvent)threadEvent.get());
+		removeEvent((ClientEvent) threadEvent.get());
 	}
 
 	protected void returnClientHandler() {
 		logger.finest(getName());
 		try {
-			for(int i=0;threadAccessCount!=0;i++) {
-				if(i==100) { 
-					logger.warning("ClientHandler must have got into a loop waiting for thread to free up! ThreadAccessCount="+threadAccessCount);
+			for (int i = 0; threadAccessCount != 0; i++) {
+				if (i == 100) {
+					logger.warning("ClientHandler must have got into a loop waiting for thread to free up! ThreadAccessCount=" + threadAccessCount);
 					threadAccessCount = 0;
-					if(Assertion.isEnabled()) {
+					if (Assertion.isEnabled()) {
 						assertionSystemExit();
 					} else {
 						break;
 					}
 				}
-				if(threadAccessCount<=0) break;
+				if (threadAccessCount <= 0) break;
 
-				logger.finest("Waiting for other thread of "+getName()+" to finish");
+				logger.finest("Waiting for other thread of " + getName() + " to finish");
 				Thread.sleep(60);
 			}
-		} catch(InterruptedException ie) {
-			appLogger.warning("InterruptedException: "+ie);
+		} catch (InterruptedException ie) {
+			appLogger.warning("InterruptedException: " + ie);
 		}
 		super.returnClientHandler();
 	}
 
-	public void setDataMode(DataMode dataMode, DataType dataType) 
+	public void setDataMode(DataMode dataMode, DataType dataType)
 			throws IOException {
-		if(getDataMode(dataType)==dataMode) return;
+		if (getDataMode(dataType) == dataMode) return;
 
-		appLogger.fine("Setting Type:"+dataType+", Mode:"+dataMode);
+		appLogger.fine("Setting Type:" + dataType + ", Mode:" + dataMode);
 		super.checkDataModeSet(dataMode, dataType);
 
 		setDataModeNonBlocking(dataMode, dataType);
 	}
 
-	private void setDataModeNonBlocking(DataMode dataMode, DataType dataType) 
+	private void setDataModeNonBlocking(DataMode dataMode, DataType dataType)
 			throws IOException {
 		logger.finest("ENTER");
-		if(dataMode == DataMode.STRING) {
-			if(dataType == DataType.OUT) {
-				if(dataModeOUT == DataMode.BYTE || dataModeOUT == DataMode.BINARY) {
+		if (dataMode == DataMode.STRING) {
+			if (dataType == DataType.OUT) {
+				if (dataModeOUT == DataMode.BYTE || dataModeOUT == DataMode.BINARY) {
 					dataModeOUT = dataMode;
-				} else if(dataModeOUT == DataMode.OBJECT) {
+				} else if (dataModeOUT == DataMode.OBJECT) {
 					dataModeOUT = dataMode;
-					o_out.flush(); o_out = null;
+					o_out.flush();
+					o_out = null;
 					b_out = new BufferedOutputStream(out);
 				} else {
-					Assertion.affirm(false, "Unknown DataType.OUT DataMode - "+dataModeOUT);
+					Assertion.affirm(false, "Unknown DataType.OUT DataMode - " + dataModeOUT);
 				}
-				Assertion.affirm(b_out!=null, "BufferedOutputStream is still null!");
-				Assertion.affirm(o_out==null, "ObjectOutputStream is still not null!");
-			} else if(dataType == DataType.IN) {
+				Assertion.affirm(b_out != null, "BufferedOutputStream is still null!");
+				Assertion.affirm(o_out == null, "ObjectOutputStream is still not null!");
+			} else if (dataType == DataType.IN) {
 				dataModeIN = dataMode;
 
-				if(o_in!=null) {
-					if(o_in.available()!=0)
+				if (o_in != null) {
+					if (o_in.available() != 0)
 						logger.warning("Data looks to be present in ObjectInputStream");
 					o_in = null;
 				}
 				b_in = null;
 				bufferedReader = null;
 				//input stream will work
-				Assertion.affirm(in!=null, "InputStream is still null!");
-				Assertion.affirm(b_in==null, "BufferedInputStream is still not null!");
-				Assertion.affirm(bufferedReader==null, "BufferedReader is still not null!");
+				Assertion.affirm(in != null, "InputStream is still null!");
+				Assertion.affirm(b_in == null, "BufferedInputStream is still not null!");
+				Assertion.affirm(bufferedReader == null, "BufferedReader is still not null!");
 			}
-		} else if(dataMode == DataMode.OBJECT) {
-			if(dataType == DataType.IN) {
+		} else if (dataMode == DataMode.OBJECT) {
+			if (dataType == DataType.IN) {
 				//we will disable this for now
 				throw new IllegalArgumentException("Can't set DataType.IN mode to OBJECT when blocking mode is set as false!");
 			}
 
-			if(dataType == DataType.OUT) {
+			if (dataType == DataType.OUT) {
 				dataModeOUT = dataMode;
 				b_out = null;
 				o_out = new ObjectOutputStream(out);
-				Assertion.affirm(o_out!=null, "ObjectOutputStream is still null!");
+				Assertion.affirm(o_out != null, "ObjectOutputStream is still null!");
 				o_out.flush();
-			} else if(dataType == DataType.IN) {
+			} else if (dataType == DataType.IN) {
 				dataModeIN = dataMode;
 				b_in = null;
 				bufferedReader = null;
-				
+
 				registerForRead();
 				o_in = new ObjectInputStream(in); //will block	
-				Assertion.affirm(o_in!=null, "ObjectInputStream is still null!");
+				Assertion.affirm(o_in != null, "ObjectInputStream is still null!");
 			}
-		} else if(dataMode == DataMode.BYTE || dataMode == DataMode.BINARY) {
-			if(dataType == DataType.OUT) {
-				if(dataModeOUT == DataMode.STRING || 
-						dataModeOUT == DataMode.BYTE || 
+		} else if (dataMode == DataMode.BYTE || dataMode == DataMode.BINARY) {
+			if (dataType == DataType.OUT) {
+				if (dataModeOUT == DataMode.STRING ||
+						dataModeOUT == DataMode.BYTE ||
 						dataModeOUT == DataMode.BINARY) {
 					dataModeOUT = dataMode;
-				} else if(dataModeOUT == DataMode.OBJECT) {
+				} else if (dataModeOUT == DataMode.OBJECT) {
 					dataModeOUT = dataMode;
-					
+
 					o_out = null;
 					b_out = new BufferedOutputStream(out);
 				} else {
-					Assertion.affirm(false, "Unknown DataType.OUT - DataMode: "+dataModeOUT);
+					Assertion.affirm(false, "Unknown DataType.OUT - DataMode: " + dataModeOUT);
 				}
-				Assertion.affirm(b_out!=null, "BufferedOutputStream is still null!");
-			} else if(dataType == DataType.IN) {
+				Assertion.affirm(b_out != null, "BufferedOutputStream is still null!");
+			} else if (dataType == DataType.IN) {
 				dataModeIN = dataMode;
 				o_in = null;
 				bufferedReader = null;
 				b_in = null;
 				//input stream will work
-				Assertion.affirm(in!=null, "InputStream is still null!");
+				Assertion.affirm(in != null, "InputStream is still null!");
 			} else {
-				throw new IllegalArgumentException("Unknown DataType : "+dataType);
+				throw new IllegalArgumentException("Unknown DataType : " + dataType);
 			}
 		} else {
-			throw new IllegalArgumentException("Unknown DataMode : "+dataMode);
+			throw new IllegalArgumentException("Unknown DataMode : " + dataMode);
 		}
 	}
 
@@ -879,11 +898,11 @@ public class NonBlockingClientHandler extends BasicClientHandler {
 
 	public void updateInputOutputStreams() throws IOException {
 		byteBufferOutputStream = new ByteBufferOutputStream(writeByteBuffer, this);
-		setInputStream( new ByteBufferInputStream(readByteBuffer, this, getCharset()) );
+		setInputStream(new ByteBufferInputStream(readByteBuffer, this, getCharset()));
 		setOutputStream(byteBufferOutputStream);
-		
+
 		//logger.warning("updateInputOutputStreams: "+sslEngine);
-		if(sslEngine!=null) {
+		if (sslEngine != null) {
 			sslEngine.setUseClientMode(false);
 			sslEngine.beginHandshake();
 
@@ -907,6 +926,7 @@ public class NonBlockingClientHandler extends BasicClientHandler {
 	public void setSocketChannel(SocketChannel socketChannel) {
 		this.socketChannel = socketChannel;
 	}
+
 	public SocketChannel getSocketChannel() {
 		return socketChannel;
 	}
@@ -914,19 +934,20 @@ public class NonBlockingClientHandler extends BasicClientHandler {
 	public void setSelectionKey(SelectionKey selectionKey) {
 		this.selectionKey = selectionKey;
 	}
+
 	public SelectionKey getSelectionKey() {
-		if(selectionKey==null)
+		if (selectionKey == null)
 			selectionKey = getSocketChannel().keyFor(getServer().getSelector());
 		return selectionKey;
 	}
 
-	private void processGotDataInBuffers() throws AppException, 
+	private void processGotDataInBuffers() throws AppException,
 			ConnectionLostException, ClassNotFoundException, IOException {
-		if(getInputStream().available()==0) return;
-		
-		logger.finest("Trying to process got data.. DataMode.IN="+dataModeIN);
+		if (getInputStream().available() == 0) return;
+
+		logger.finest("Trying to process got data.. DataMode.IN=" + dataModeIN);
 		AuthStatus authStatus = null;
-		
+
 		//--For debug
 		((ByteBufferInputStream) getInputStream()).dumpContent();
 
@@ -936,256 +957,257 @@ public class NonBlockingClientHandler extends BasicClientHandler {
 		byte[] recByte = null;
 
 		boolean timeToCheckForNewLineMiss = false;
-		
+
 		do {
 			//updateLastCommunicationTime();
 
-			if(dataModeIN == DataMode.STRING) {
-				ByteBufferInputStream bbin = (ByteBufferInputStream) 
-					getInputStream();
+			if (dataModeIN == DataMode.STRING) {
+				ByteBufferInputStream bbin = (ByteBufferInputStream)
+						getInputStream();
 				timeToCheckForNewLineMiss = true;
 
-				while(bbin.isLineReady()) {
+				while (bbin.isLineReady()) {
 
 					rec = bbin.readLine();
-					if(rec==null) {
+					if (rec == null) {
 						lost = true;
 						return;
 					}
-					if(getCommunicationLogging() && authorised == true) {
+					if (getCommunicationLogging() && authorised == true) {
 						appLogger.log(Level.FINE, "Got STRING [{0}] : {1}", new Object[]{getHostAddress(), rec});
 					}
-					
+
 					totalReadBytes = totalReadBytes + rec.length();
-					
-					if(authorised == false)
+
+					if (authorised == false)
 						authStatus = clientAuthenticationHandler.handleAuthentication(this, rec);
 					else
 						clientCommandHandler.handleCommand(this, rec);
 
-					if(isClosed()==true) return;
+					if (isClosed() == true) return;
 
-					while(authStatus==AuthStatus.FAILURE)
+					while (authStatus == AuthStatus.FAILURE)
 						authStatus = processAuthorisation();
 
-					if(authStatus==AuthStatus.SUCCESS)
+					if (authStatus == AuthStatus.SUCCESS)
 						authorised = true;
 
-					if(dataModeIN != DataMode.STRING) {
+					if (dataModeIN != DataMode.STRING) {
 						break;
 					}
 
 					timeToCheckForNewLineMiss = false;
 				}//end of while
 
-				if(timeToCheckForNewLineMiss && bbin.availableOnlyInByteBuffer()==0) {
+				if (timeToCheckForNewLineMiss && bbin.availableOnlyInByteBuffer() == 0) {
 					return;
 				} else {
 					timeToCheckForNewLineMiss = false;
 				}
-			} 
-			
+			}
+
 			//if(dataModeIN == DataMode.OBJECT) {
-			while(dataModeIN == DataMode.OBJECT && o_in!=null) {
+			while (dataModeIN == DataMode.OBJECT && o_in != null) {
 				//not sure if all bytes are in buffer..~ may need more read.. will get stuck..
 				recObject = o_in.readObject();
-				if(recObject==null) {
+				if (recObject == null) {
 					lost = true;
 					return;
 				}
-				if(getCommunicationLogging() && authorised == true) {
+				if (getCommunicationLogging() && authorised == true) {
 					appLogger.log(Level.FINE, "Got OBJECT [{0}] : {1}", new Object[]{getHostAddress(), recObject.toString()});
 				}
-				
+
 				totalReadBytes = totalReadBytes + 1;
 
-				if(authorised == false)
+				if (authorised == false)
 					authStatus = clientAuthenticationHandler.handleAuthentication(this, recObject);
 				else
 					clientObjectHandler.handleObject(this, recObject);
-				
-				if(isClosed()==true) return;
 
-				while(authStatus==AuthStatus.FAILURE)
+				if (isClosed() == true) return;
+
+				while (authStatus == AuthStatus.FAILURE)
 					authStatus = processAuthorisation();
-				
-				if(authStatus==AuthStatus.SUCCESS)
+
+				if (authStatus == AuthStatus.SUCCESS)
 					authorised = true;
 			}
 			//} 
-			
+
 
 			//if(dataModeIN == DataMode.BYTE) {
-			while(dataModeIN == DataMode.BYTE && getInputStream().available()!=0) {
+			while (dataModeIN == DataMode.BYTE && getInputStream().available() != 0) {
 				rec = readBytes();
-				if(rec==null) {
+				if (rec == null) {
 					lost = true;
 					return;
 				}
-				if(getCommunicationLogging() && authorised == true) {
-					appLogger.log(Level.FINE, "Got BYTE [{0}] : {1}", 
-						new Object[]{getHostAddress(), rec});
+				if (getCommunicationLogging() && authorised == true) {
+					appLogger.log(Level.FINE, "Got BYTE [{0}] : {1}",
+							new Object[]{getHostAddress(), rec});
 				}
-				
+
 				totalReadBytes = totalReadBytes + rec.length();
 
-				if(authorised == false)
+				if (authorised == false)
 					authStatus = clientAuthenticationHandler.handleAuthentication(this, rec);
 				else
 					clientCommandHandler.handleCommand(this, rec);
 
-				if(isClosed()==true) return;
+				if (isClosed() == true) return;
 
-				while(authStatus==AuthStatus.FAILURE)
+				while (authStatus == AuthStatus.FAILURE)
 					authStatus = processAuthorisation();
 
-				if(authStatus==AuthStatus.SUCCESS)
+				if (authStatus == AuthStatus.SUCCESS)
 					authorised = true;
 			}
 
 			//} else if(dataModeIN == DataMode.BINARY) {
-			while(dataModeIN == DataMode.BINARY && getInputStream().available()!=0) {
+			while (dataModeIN == DataMode.BINARY && getInputStream().available() != 0) {
 				recByte = readBinary();
-				if(recByte==null) {
+				if (recByte == null) {
 					lost = true;
 					return;
 				}
-				if(getCommunicationLogging() && authorised == true) {				
-					if(getServer().isRawCommunicationLogging()) {
-						if(getServer().getRawCommunicationMaxLength()>0 && 
-									recByte.length>getServer().getRawCommunicationMaxLength()) {
-							appLogger.log(Level.FINE, 
-								"Got BINARY [{0}] : {1}; RAW: {2}{3}", new Object[]{
-									getHostAddress(), MyString.getMemInfo(recByte.length), 
-									new String(recByte,0,getServer().getRawCommunicationMaxLength(),charset),"..."});
+				if (getCommunicationLogging() && authorised == true) {
+					if (getServer().isRawCommunicationLogging()) {
+						if (getServer().getRawCommunicationMaxLength() > 0 &&
+								recByte.length > getServer().getRawCommunicationMaxLength()) {
+							appLogger.log(Level.FINE,
+									"Got BINARY [{0}] : {1}; RAW: {2}{3}", new Object[]{
+											getHostAddress(), MyString.getMemInfo(recByte.length),
+											new String(recByte, 0, getServer().getRawCommunicationMaxLength(), charset), "..."});
 						} else {
-							appLogger.log(Level.FINE, 
-								"Got BINARY [{0}] : {1}; RAW: {2}", new Object[]{
-									getHostAddress(), MyString.getMemInfo(recByte.length), 
-									new String(recByte,charset)});
+							appLogger.log(Level.FINE,
+									"Got BINARY [{0}] : {1}; RAW: {2}", new Object[]{
+											getHostAddress(), MyString.getMemInfo(recByte.length),
+											new String(recByte, charset)});
 						}
 					} else {
-						appLogger.log(Level.FINE, 
-							"Got BINARY [{0}] : {1}", new Object[]{getHostAddress(), 
-								MyString.getMemInfo(recByte.length)});
+						appLogger.log(Level.FINE,
+								"Got BINARY [{0}] : {1}", new Object[]{getHostAddress(),
+										MyString.getMemInfo(recByte.length)});
 					}
 				} else if (getCommunicationLogging()) {
-					appLogger.log(Level.FINE, 
-						"Got BINARY [{0}] : {1}", new Object[]{getHostAddress(), 
-							MyString.getMemInfo(recByte.length)});
+					appLogger.log(Level.FINE,
+							"Got BINARY [{0}] : {1}", new Object[]{getHostAddress(),
+									MyString.getMemInfo(recByte.length)});
 				}
-				
+
 				totalReadBytes = totalReadBytes + recByte.length;
 
-				if(authorised == false)
+				if (authorised == false)
 					authStatus = clientAuthenticationHandler.handleAuthentication(this, recByte);
 				else
 					clientBinaryHandler.handleBinary(this, recByte);
 
-				if(isClosed()==true) return;
+				if (isClosed() == true) return;
 
-				while(authStatus==AuthStatus.FAILURE)
+				while (authStatus == AuthStatus.FAILURE)
 					authStatus = processAuthorisation();
 
-				if(authStatus==AuthStatus.SUCCESS)
+				if (authStatus == AuthStatus.SUCCESS)
 					authorised = true;
 			}
 
 			//} else {
-			if(dataModeIN != DataMode.STRING && dataModeIN != DataMode.OBJECT 
-				&& dataModeIN != DataMode.BYTE && dataModeIN != DataMode.BINARY) {
-				throw new IllegalStateException("Incoming DataMode is not supported : "+dataModeIN);
+			if (dataModeIN != DataMode.STRING && dataModeIN != DataMode.OBJECT
+					&& dataModeIN != DataMode.BYTE && dataModeIN != DataMode.BINARY) {
+				throw new IllegalStateException("Incoming DataMode is not supported : " + dataModeIN);
 			}
-		} while(getInputStream().available()!=0);
+		} while (getInputStream().available() != 0);
 	}
 
-	public void registerForRead() 
+	public void registerForRead()
 			throws IOException, ClosedChannelException {
 		//System.out.println("registerForRead..");
 		//(new Exception()).printStackTrace();
-		try {		
-			if(getSelectionKey()==null) {
-				boolean flag = getServer().registerChannel(getSocketChannel(), 
-					SelectionKey.OP_READ, this);
-				if(flag) {
-					logger.finest("Adding OP_READ as interest Ops for "+getName());
-				} else if(ByteBufferOutputStream.isLoggable(Level.FINEST)) {
-					logger.finest("OP_READ is already present in interest Ops for "+getName());
+		try {
+			if (getSelectionKey() == null) {
+				boolean flag = getServer().registerChannel(getSocketChannel(),
+						SelectionKey.OP_READ, this);
+				if (flag) {
+					logger.finest("Adding OP_READ as interest Ops for " + getName());
+				} else if (ByteBufferOutputStream.isLoggable(Level.FINEST)) {
+					logger.finest("OP_READ is already present in interest Ops for " + getName());
 				}
-			} else if(getSelectionKey().isValid()) {
-				if((getSelectionKey().interestOps() & SelectionKey.OP_READ) == 0 ) {
-					logger.finest("Adding OP_READ to interest Ops for "+getName());
+			} else if (getSelectionKey().isValid()) {
+				if ((getSelectionKey().interestOps() & SelectionKey.OP_READ) == 0) {
+					logger.finest("Adding OP_READ to interest Ops for " + getName());
 					removeEvent(ClientEvent.READ);
-					getSelectionKey().interestOps(getSelectionKey().interestOps() 
-						| SelectionKey.OP_READ);
-					if(wakeupSelectorAfterRegisterRead) {
+					getSelectionKey().interestOps(getSelectionKey().interestOps()
+							| SelectionKey.OP_READ);
+					if (wakeupSelectorAfterRegisterRead) {
 						getServer().getSelector().wakeup();
 					}
 				} else {
-					if(ByteBufferOutputStream.isLoggable(Level.FINEST)) {
-						logger.finest("OP_READ is already present in interest Ops for "+getName());
+					if (ByteBufferOutputStream.isLoggable(Level.FINEST)) {
+						logger.finest("OP_READ is already present in interest Ops for " + getName());
 					}
 				}
 			} else {
 				throw new IOException("SelectionKey is invalid!");
 			}
-		} catch(CancelledKeyException e) {
+		} catch (CancelledKeyException e) {
 			throw new IOException("SelectionKey is cancelled!");
 		}
 	}
 
-	public void registerForWrite() 
+	public void registerForWrite()
 			throws IOException, ClosedChannelException {
-		if(hasEvent(ClientEvent.RUN_BLOCKING) || hasEvent(ClientEvent.MAX_CON_BLOCKING)) {
+		if (hasEvent(ClientEvent.RUN_BLOCKING) || hasEvent(ClientEvent.MAX_CON_BLOCKING)) {
 			throw new IllegalStateException("This method is only allowed under Non-Blocking mode.");
 		}
 
-		if(clientWriteHandler==null) {
+		if (clientWriteHandler == null) {
 			throw new IllegalStateException("ClientWriteHandler has not been set!");
 		}
 		registerWrite();
 	}
-	
+
 	public void registerWrite() throws IOException {
 		//System.out.println("registerWrite..");
 		//(new Exception()).printStackTrace();
 		try {
-			if(getSelectionKey()==null) {				
-				boolean flag = getServer().registerChannel(getSocketChannel(), 
+			if (getSelectionKey() == null) {
+				boolean flag = getServer().registerChannel(getSocketChannel(),
 						SelectionKey.OP_WRITE, this);
-				if(flag) {
-					logger.finest("Adding OP_WRITE as interest Ops for "+getName());
-				} else if(ByteBufferOutputStream.isLoggable(Level.FINEST)) {
-					logger.finest("OP_WRITE is already present in interest Ops for "+getName());
+				if (flag) {
+					logger.finest("Adding OP_WRITE as interest Ops for " + getName());
+				} else if (ByteBufferOutputStream.isLoggable(Level.FINEST)) {
+					logger.finest("OP_WRITE is already present in interest Ops for " + getName());
 				}
-			} else if(getSelectionKey().isValid()) {
-				if((getSelectionKey().interestOps() & SelectionKey.OP_WRITE) == 0 ) {
-					logger.finest("Adding OP_WRITE to interest Ops for "+getName());
+			} else if (getSelectionKey().isValid()) {
+				if ((getSelectionKey().interestOps() & SelectionKey.OP_WRITE) == 0) {
+					logger.finest("Adding OP_WRITE to interest Ops for " + getName());
 					removeEvent(ClientEvent.WRITE);
-					getSelectionKey().interestOps(getSelectionKey().interestOps() 
-						| SelectionKey.OP_WRITE);
-					if(wakeupSelectorAfterRegisterWrite) {
+					getSelectionKey().interestOps(getSelectionKey().interestOps()
+							| SelectionKey.OP_WRITE);
+					if (wakeupSelectorAfterRegisterWrite) {
 						getServer().getSelector().wakeup();
 					}
 				} else {
-					if(ByteBufferOutputStream.isLoggable(Level.FINEST)) {
-						logger.finest("OP_WRITE is already present in interest Ops for "+getName());
+					if (ByteBufferOutputStream.isLoggable(Level.FINEST)) {
+						logger.finest("OP_WRITE is already present in interest Ops for " + getName());
 					}
 				}
 			} else {
 				throw new IOException("SelectionKey is invalid!");
 			}
-		} catch(CancelledKeyException e) {
+		} catch (CancelledKeyException e) {
 			throw new IOException("SelectionKey is cancelled!");
 		}
 	}
 
 	protected void setClientWriteHandler(ClientWriteHandler handler) {
-		clientWriteHandler=handler;
+		clientWriteHandler = handler;
 	}
 
 	/**
 	 * Returns number of thread currently in this object.
+	 *
 	 * @since 1.4.6
 	 */
 	public int getThreadAccessCount() {
@@ -1195,17 +1217,17 @@ public class NonBlockingClientHandler extends BasicClientHandler {
 	private void doHandshake() throws Exception {
 		while (true) {
 			SSLEngineResult res;
-			logger.fine("handshakeStatus: "+handshakeStatus);
+			logger.fine("handshakeStatus: " + handshakeStatus);
 
-			if(handshakeStatus==SSLEngineResult.HandshakeStatus.FINISHED) {
-					if(initialHandshakeStatus) {
-						finishInitialHandshake();
-					}
-					return;
-			} else if(handshakeStatus==SSLEngineResult.HandshakeStatus.NEED_TASK) {
-					doTasks();
-					continue;
-			} else if(handshakeStatus==SSLEngineResult.HandshakeStatus.NEED_UNWRAP) {
+			if (handshakeStatus == SSLEngineResult.HandshakeStatus.FINISHED) {
+				if (initialHandshakeStatus) {
+					finishInitialHandshake();
+				}
+				return;
+			} else if (handshakeStatus == SSLEngineResult.HandshakeStatus.NEED_TASK) {
+				doTasks();
+				continue;
+			} else if (handshakeStatus == SSLEngineResult.HandshakeStatus.NEED_UNWRAP) {
 					/*
 					doRead();
 
@@ -1214,27 +1236,27 @@ public class NonBlockingClientHandler extends BasicClientHandler {
 						registerForRead();
 					}
 					*/
-					return;
-			} else if(handshakeStatus==SSLEngineResult.HandshakeStatus.NEED_WRAP) {
-					ByteBuffer netData = (ByteBuffer) getServer().getByteBufferPool().borrowObject();
-					//netData.clear();
+				return;
+			} else if (handshakeStatus == SSLEngineResult.HandshakeStatus.NEED_WRAP) {
+				ByteBuffer netData = (ByteBuffer) getServer().getByteBufferPool().borrowObject();
+				//netData.clear();
 
-					res = sslEngine.wrap(dummyByteBuffer, netData);
-					logger.info("Wrapping:\n" + res);
-					assert res.bytesProduced() != 0 : "No net data produced during handshake wrap.";
-					assert res.bytesConsumed() == 0 : "App data consumed during handshake wrap.";
-					handshakeStatus = res.getHandshakeStatus();
-					
-					//netData.flip(); -- no need to flip will be done when writing to sc					
-					byteBufferOutputStream.addEncryptedByteBuffer(netData);
+				res = sslEngine.wrap(dummyByteBuffer, netData);
+				logger.info("Wrapping:\n" + res);
+				assert res.bytesProduced() != 0 : "No net data produced during handshake wrap.";
+				assert res.bytesConsumed() == 0 : "App data consumed during handshake wrap.";
+				handshakeStatus = res.getHandshakeStatus();
 
-					if (!doWrite()) {
-						return;
-					}
-					continue;//back to loop
-			} else if(handshakeStatus==SSLEngineResult.HandshakeStatus.NOT_HANDSHAKING) {
-					assert false : "doHandshake() should never reach the NOT_HANDSHAKING state";
+				//netData.flip(); -- no need to flip will be done when writing to sc
+				byteBufferOutputStream.addEncryptedByteBuffer(netData);
+
+				if (!doWrite()) {
 					return;
+				}
+				continue;//back to loop
+			} else if (handshakeStatus == SSLEngineResult.HandshakeStatus.NOT_HANDSHAKING) {
+				assert false : "doHandshake() should never reach the NOT_HANDSHAKING state";
+				return;
 			}//if
 		}//loop
 	}
@@ -1247,7 +1269,7 @@ public class NonBlockingClientHandler extends BasicClientHandler {
 			logger.fine("Running the task.. END");
 		}
 		handshakeStatus = sslEngine.getHandshakeStatus();
-		logger.fine("handshakeStatus: "+handshakeStatus);
+		logger.fine("handshakeStatus: " + handshakeStatus);
 	}
 
 	private void finishInitialHandshake() throws IOException {
@@ -1259,7 +1281,7 @@ public class NonBlockingClientHandler extends BasicClientHandler {
 	}
 
 	public ByteBuffer encrypt(ByteBuffer src) throws IOException {
-		if(initialHandshakeStatus) {
+		if (initialHandshakeStatus) {
 			logger.fine("Writing not possible during handshake!");
 			//Exception e = new Exception();
 			//e.printStackTrace();
@@ -1276,21 +1298,21 @@ public class NonBlockingClientHandler extends BasicClientHandler {
 			logger.info("Wrapping:\n" + res);
 			//dest.flip();
 			return dest;
-		} catch(IOException e) {
+		} catch (IOException e) {
 			logger.warning("IOException:" + e);
 			isException = true;
 			throw e;
-		} catch(Exception e) {
+		} catch (Exception e) {
 			logger.warning("Exception:" + e);
 			isException = true;
 			throw new IOException(e.getMessage());
 		} finally {
-			if(isException==true && dest!=null) {
+			if (isException == true && dest != null) {
 				try {
 					getServer().getByteBufferPool().returnObject(dest);
-				} catch(Exception er) {
-					logger.warning("Error in returning ByteBuffer to pool: "+er);
-				}				
+				} catch (Exception er) {
+					logger.warning("Error in returning ByteBuffer to pool: " + er);
+				}
 			}
 		}
 	}

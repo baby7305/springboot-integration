@@ -1,10 +1,10 @@
 /*
- * This	file is	part of	the	QuickServer	library	
+ * This	file is	part of	the	QuickServer	library
  * Copyright (C) 2003-2005 QuickServer.org
  *
  * Use, modification, copying and distribution of this software is subject to
- * the terms and conditions of the GNU Lesser General Public License. 
- * You should have received a copy of the GNU LGP License along with this 
+ * the terms and conditions of the GNU Lesser General Public License.
+ * You should have received a copy of the GNU LGP License along with this
  * library; if not, you can download a copy from <http://www.quickserver.org/>.
  *
  * For questions, suggestions, bug-reports,	enhancement-requests etc.
@@ -12,32 +12,30 @@
  *
  */
 
-package	chatserver;
+package chatserver;
 
-import org.quickserver.net.server.*;
-
-import org.quickserver.util.pool.PoolableObject;
-import org.apache.commons.pool.BasePoolableObjectFactory; 
+import org.apache.commons.pool.BasePoolableObjectFactory;
 import org.apache.commons.pool.PoolableObjectFactory;
+import org.quickserver.net.server.ClientData;
+import org.quickserver.net.server.ClientIdentifiable;
+import org.quickserver.util.pool.PoolableObject;
 
-import java.util.*;
-import java.io.*;
-import java.nio.*;
-import java.util.logging.*;
+import java.util.HashSet;
+import java.util.Set;
+import java.util.logging.Logger;
 
 /**
- *
- * @author	Akshathkumar Shetty
+ * @author Akshathkumar Shetty
  */
-public class ChatData implements ClientData, ClientIdentifiable, PoolableObject	{
-	private	static final Logger	logger = 
-		Logger.getLogger(ChatData.class.getName());
+public class ChatData implements ClientData, ClientIdentifiable, PoolableObject {
+	private static final Logger logger =
+			Logger.getLogger(ChatData.class.getName());
 
-	private	static Set usernameList	= new HashSet();
+	private static Set usernameList = new HashSet();
 
-	private	String username	= null;
-	private	String room	= null;
-	private	String info	= null;
+	private String username = null;
+	private String room = null;
+	private String info = null;
 
 	//for auth
 	private String lastAsked = null;
@@ -46,6 +44,7 @@ public class ChatData implements ClientData, ClientIdentifiable, PoolableObject	
 	public void setLastAsked(String lastAsked) {
 		this.lastAsked = lastAsked;
 	}
+
 	public String getLastAsked() {
 		return lastAsked;
 	}
@@ -53,6 +52,7 @@ public class ChatData implements ClientData, ClientIdentifiable, PoolableObject	
 	public void setPassword(byte[] password) {
 		this.password = password;
 	}
+
 	public byte[] getPassword() {
 		return password;
 	}
@@ -60,39 +60,44 @@ public class ChatData implements ClientData, ClientIdentifiable, PoolableObject	
 	public boolean registerUsername(String username) {
 		return usernameList.add(username);
 	}
+
 	public void deregisterUsername(String username) {
 		usernameList.remove(username);
 	}
-	public void	setUsername(String username) {
-		this.username =	username;
+
+	public void setUsername(String username) {
+		this.username = username;
 	}
+
 	public String getUsername() {
 		return username;
 	}
 
-	public void	setRoom(String room) {
-		this.room =	room;
+	public void setRoom(String room) {
+		this.room = room;
 	}
-	public String getRoom()	{
+
+	public String getRoom() {
 		return room;
 	}
 
-	public String getClientId()	{
+	public String getClientId() {
 		return username;
 	}
 
 	public String getClientKey() {
-		if(room==null)
+		if (room == null)
 			return username;
 		else
-			return username+"@"+room;
+			return username + "@" + room;
 	}
 
-	public void	setClientInfo(String info) {
-		this.info =	info;
+	public void setClientInfo(String info) {
+		this.info = info;
 	}
+
 	public String getClientInfo() {
-		return getClientKey()+"	- "+info;
+		return getClientKey() + "	- " + info;
 	}
 
 	public String toString() {
@@ -100,7 +105,7 @@ public class ChatData implements ClientData, ClientIdentifiable, PoolableObject	
 	}
 
 	//-- PoolableObject
-	public void	clean()	{
+	public void clean() {
 		usernameList.remove(username);
 		username = null;
 		room = null;
@@ -108,26 +113,29 @@ public class ChatData implements ClientData, ClientIdentifiable, PoolableObject	
 		lastAsked = null;
 	}
 
-	public boolean isPoolable()	{
+	public boolean isPoolable() {
 		return true;
 	}
 
-	public PoolableObjectFactory getPoolableObjectFactory()	{
-		return	new	BasePoolableObjectFactory()	{
-			public Object makeObject() { 
+	public PoolableObjectFactory getPoolableObjectFactory() {
+		return new BasePoolableObjectFactory() {
+			public Object makeObject() {
 				return new ChatData();
-			} 
-			public void	passivateObject(Object obj)	{
-				ChatData ed	= (ChatData)obj;
-				ed.clean();
-			} 
-			public void	destroyObject(Object obj) {
-				if(obj==null) return;
-				passivateObject(obj);
-				obj	= null;
 			}
+
+			public void passivateObject(Object obj) {
+				ChatData ed = (ChatData) obj;
+				ed.clean();
+			}
+
+			public void destroyObject(Object obj) {
+				if (obj == null) return;
+				passivateObject(obj);
+				obj = null;
+			}
+
 			public boolean validateObject(Object obj) {
-				if(obj==null) 
+				if (obj == null)
 					return false;
 				else
 					return true;

@@ -1,10 +1,10 @@
 /*
- * This file is part of the QuickServer library 
+ * This file is part of the QuickServer library
  * Copyright (C) 2003-2005 QuickServer.org
  *
  * Use, modification, copying and distribution of this software is subject to
- * the terms and conditions of the GNU Lesser General Public License. 
- * You should have received a copy of the GNU LGP License along with this 
+ * the terms and conditions of the GNU Lesser General Public License.
+ * You should have received a copy of the GNU LGP License along with this
  * library; if not, you can download a copy from <http://www.quickserver.org/>.
  *
  * For questions, suggestions, bug-reports, enhancement-requests etc.
@@ -14,12 +14,14 @@
 
 package filesrv;
 
-import org.quickserver.net.server.*;
 import org.quickserver.net.ServerHook;
-import java.util.*;
+import org.quickserver.net.server.QuickServer;
+
+import java.util.HashMap;
 
 /**
  * PrepareHook
+ *
  * @author Akshathkumar Shetty
  */
 public class PrepareHook implements ServerHook {
@@ -34,13 +36,13 @@ public class PrepareHook implements ServerHook {
 	}
 
 	public boolean handleEvent(int event) {
-		if(event==ServerHook.PRE_STARTUP) {
-			HashMap appConfig = 
-				quickserver.getConfig().getApplicationConfiguration();
-			if(appConfig==null)
+		if (event == ServerHook.PRE_STARTUP) {
+			HashMap appConfig =
+					quickserver.getConfig().getApplicationConfiguration();
+			if (appConfig == null)
 				return false;
 
-			String temp = (String)appConfig.get("HFTP_ROOT");
+			String temp = (String) appConfig.get("HFTP_ROOT");
 			Data.setUserRootHome(temp);
 			return true;
 		}

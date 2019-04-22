@@ -1,10 +1,10 @@
 /*
- * This file is part of the QuickServer library 
+ * This file is part of the QuickServer library
  * Copyright (C) 2003-2005 QuickServer.org
  *
  * Use, modification, copying and distribution of this software is subject to
- * the terms and conditions of the GNU Lesser General Public License. 
- * You should have received a copy of the GNU LGP License along with this 
+ * the terms and conditions of the GNU Lesser General Public License.
+ * You should have received a copy of the GNU LGP License along with this
  * library; if not, you can download a copy from <http://www.quickserver.org/>.
  *
  * For questions, suggestions, bug-reports, enhancement-requests etc.
@@ -16,28 +16,33 @@ package ftpserver;
 
 import org.quickserver.net.server.ClientCommandHandler;
 import org.quickserver.net.server.ClientHandler;
+import org.quickserver.util.MyString;
 
-import java.net.*;
-import java.io.*;
-import java.util.StringTokenizer;
-import org.quickserver.util.*;
-import java.text.*;
+import java.io.File;
+import java.io.IOException;
+import java.net.InetAddress;
+import java.net.ServerSocket;
+import java.net.Socket;
+import java.net.SocketTimeoutException;
+import java.text.SimpleDateFormat;
 import java.util.Date;
-import java.util.logging.*;
+import java.util.StringTokenizer;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
- * IMPORTANT NOTE: This example just demonstrates how to use some 
- * of the QuickServer features. This example not built keeping 
- * security in mind. 
+ * IMPORTANT NOTE: This example just demonstrates how to use some
+ * of the QuickServer features. This example not built keeping
+ * security in mind.
  */
 public class CommandHandler implements ClientCommandHandler {
-	private static Logger logger = 
-		Logger.getLogger(CommandHandler.class.getName());
+	private static Logger logger =
+			Logger.getLogger(CommandHandler.class.getName());
 
 	public void gotConnected(ClientHandler handler)
-		throws SocketTimeoutException, IOException {
-		handler.sendSystemMsg("Connection opened : "+
-			handler.getSocket().getInetAddress(), Level.FINE);
+			throws SocketTimeoutException, IOException {
+		handler.sendSystemMsg("Connection opened : " +
+				handler.getSocket().getInetAddress(), Level.FINE);
 
 		handler.sendClientMsg("220-     QuickFTPServer v 0.1   ");
 		handler.sendClientMsg("220- Developed using QuickServer");
@@ -49,87 +54,88 @@ public class CommandHandler implements ClientCommandHandler {
 	public void lostConnection(ClientHandler handler) throws IOException {
 		logger.log(Level.FINE, "Connection lost : {0}", handler.getSocket().getInetAddress());
 	}
+
 	public void closingConnection(ClientHandler handler) throws IOException {
 		logger.log(Level.FINE, "Connection closed: {0}", handler.getSocket().getInetAddress());
 	}
-	
+
 	private File makeFile(String temp) {
-		logger.fine("file1: "+temp);
-		
+		logger.fine("file1: " + temp);
+
 		//temp = MyString.replaceAll(temp,"/","\\");
 		//temp = MyString.replaceAll(temp,"\\\\","\\");
-		
-		temp = MyString.replaceAll(temp,"//","/");
-		temp = MyString.replaceAll(temp,"\\","/");
-		
-		logger.fine("file2: "+temp);
+
+		temp = MyString.replaceAll(temp, "//", "/");
+		temp = MyString.replaceAll(temp, "\\", "/");
+
+		logger.fine("file2: " + temp);
 		return new File(temp);
 	}
 
 	public void handleCommand(ClientHandler handler, String command)
 			throws SocketTimeoutException, IOException {
-		Data data = (Data)handler.getClientData();
+		Data data = (Data) handler.getClientData();
 		command = command.trim();
 		String ucCommand = command.toUpperCase();
 		String args = null;
 		String temp = null;
-		
+
 		logger.log(Level.FINE, "Got command : {0}", command);
 
-		if(ucCommand.equals("QUIT")) {
+		if (ucCommand.equals("QUIT")) {
 			//LOGOUT 
 			data.wasQuit = true;
 			handler.sendClientMsg("221 Logged out.");
 			handler.closeConnection();
 			return;
-		} else if(ucCommand.endsWith("ABOR")) {
+		} else if (ucCommand.endsWith("ABOR")) {
 			//ABORT
 			data.isStop = true;
 			//close data connection
 			//handler.sendClientMsg("502 Command not implemented.");
 			handler.sendClientMsg("220 OK");
 			return;
-		} else if(ucCommand.startsWith("STAT")) {
+		} else if (ucCommand.startsWith("STAT")) {
 			//STATUS
 			handler.sendClientMsg("211- QuickFTPServer");
 			handler.sendClientMsg(" Version 0.1 ");
-			handler.sendClientMsg(" Connected to " + 
-				handler.getSocket().getInetAddress());
-			handler.sendClientMsg(" Logged in as "+data.username);
-			handler.sendClientMsg(" Cur Dir : "+data.wDir);
-			handler.sendClientMsg(" Data connection : "+
-				data.isTransferring);
+			handler.sendClientMsg(" Connected to " +
+					handler.getSocket().getInetAddress());
+			handler.sendClientMsg(" Logged in as " + data.username);
+			handler.sendClientMsg(" Cur Dir : " + data.wDir);
+			handler.sendClientMsg(" Data connection : " +
+					data.isTransferring);
 			handler.sendClientMsg("211 End of status");
 			return;
 		}
-		
+
 		///////////// now check if only not processing ///////
-		if(data.isProcessing==true) {
+		if (data.isProcessing == true) {
 			handler.sendClientMsg("503 Bad sequence of commands; another command is being processed.");
 			return;
 		}
 		/////////// ACCESS CONTROL COMMANDS /////////
-		if(ucCommand.equals("REIN")) {
+		if (ucCommand.equals("REIN")) {
 			//REINITIALIZE
 			handler.sendClientMsg("502 Command not implemented.");
-		} else if(ucCommand.startsWith("ACCT")) {
+		} else if (ucCommand.startsWith("ACCT")) {
 			//ACCOUNT
 			args = command.substring("ACCT".length()).trim();
 			data.account = args;
 			handler.sendClientMsg("230 Account OK.");
-		} else if(ucCommand.equals("CDUP")) {
+		} else if (ucCommand.equals("CDUP")) {
 			//CHANGE TO PARENT DIRECTORY 
 			int i = data.wDir.lastIndexOf("/");
 			String temp_wDir = null;
-			if(i!=-1) {
-				temp_wDir = data.wDir.substring(0,i);
-				if(temp_wDir.equals(""))
+			if (i != -1) {
+				temp_wDir = data.wDir.substring(0, i);
+				if (temp_wDir.equals(""))
 					temp_wDir = "/";
 				else
 					temp_wDir += "/"; //end
-				
-				File file = makeFile(data.root+temp_wDir);
-				if(	file.canRead() ){
+
+				File file = makeFile(data.root + temp_wDir);
+				if (file.canRead()) {
 					data.wDir = temp_wDir;
 					handler.sendClientMsg("250 Okay");
 				} else {
@@ -138,36 +144,36 @@ public class CommandHandler implements ClientCommandHandler {
 			} else {
 				handler.sendClientMsg("550 No parent dir");
 			}
-		} else if(ucCommand.startsWith("SMNT")) {
+		} else if (ucCommand.startsWith("SMNT")) {
 			//STRUCTURE MOUNT 
 			handler.sendClientMsg("502 Command not implemented.");
-		} 
+		}
 		///////// TRANSFER PARAMETER COMMANDS ////////
-		 else if(ucCommand.startsWith("PORT")) {
+		else if (ucCommand.startsWith("PORT")) {
 			/*
             PORT h1,h2,h3,h4,p1,p2
 			*/
 			args = command.substring("PORT".length()).trim();
 			String ipAddr = "";
 			int port = 0;
-			StringTokenizer st = new StringTokenizer(args,",");
+			StringTokenizer st = new StringTokenizer(args, ",");
 			int p1 = 0;
 			int p2 = 0;
-			try	{
-				ipAddr+=st.nextToken()+".";	
-				ipAddr+=st.nextToken()+".";	
-				ipAddr+=st.nextToken()+".";	
-				ipAddr+=st.nextToken();	
+			try {
+				ipAddr += st.nextToken() + ".";
+				ipAddr += st.nextToken() + ".";
+				ipAddr += st.nextToken() + ".";
+				ipAddr += st.nextToken();
 				p1 = Integer.parseInt(st.nextToken());
 				p2 = Integer.parseInt(st.nextToken());
-				port = p1*256+p2;
+				port = p1 * 256 + p2;
 				data.ip = ipAddr;
 				data.socketPort = port;
 				handler.sendClientMsg("200 Command okay.");
-			} catch (Exception e)	{
-				handler.sendClientMsg("501 Syntax error in parameters or arguments. : PORT "+e);
-			}			
-		} else if(ucCommand.startsWith("PASV")) {
+			} catch (Exception e) {
+				handler.sendClientMsg("501 Syntax error in parameters or arguments. : PORT " + e);
+			}
+		} else if (ucCommand.startsWith("PASV")) {
 			/*
 			PASSIVE
 			This command requests the server-DTP to "listen" on a data
@@ -184,26 +190,26 @@ public class CommandHandler implements ClientCommandHandler {
 			//reset for PORT
 			data.ip = null;
 
-			try	{
+			try {
 				InetAddress ipAddr = handler.getSocket().getLocalAddress();
-				String ip_port ="";
-				StringTokenizer st = 
-					new StringTokenizer(ipAddr.getHostAddress(),".");
+				String ip_port = "";
+				StringTokenizer st =
+						new StringTokenizer(ipAddr.getHostAddress(), ".");
 				while (st.hasMoreTokens()) {
-					ip_port+=st.nextToken()+",";
+					ip_port += st.nextToken() + ",";
 				}
-				data.server = new ServerSocket(0,1,ipAddr);
+				data.server = new ServerSocket(0, 1, ipAddr);
 				data.serverPort = data.server.getLocalPort();
-				logger.log(Level.FINE, "pasv port "+ data.serverPort);
+				logger.log(Level.FINE, "pasv port " + data.serverPort);
 				int p1 = data.serverPort / 256;
-				int p2 = data.serverPort - p1*256;
-				ip_port += p1+","+p2;
-				data.startDataServer(data.server,data); //start server
-				handler.sendClientMsg("227 ="+ip_port);
-			} catch(Exception e){
-				handler.sendClientMsg("425 Can't open data port; Error : "+e);
+				int p2 = data.serverPort - p1 * 256;
+				ip_port += p1 + "," + p2;
+				data.startDataServer(data.server, data); //start server
+				handler.sendClientMsg("227 =" + ip_port);
+			} catch (Exception e) {
+				handler.sendClientMsg("425 Can't open data port; Error : " + e);
 			}
-		} else if(ucCommand.startsWith("TYPE")) {
+		} else if (ucCommand.startsWith("TYPE")) {
 			/*
 			REPRESENTATION TYPE 
 			             \    /
@@ -216,19 +222,19 @@ public class CommandHandler implements ClientCommandHandler {
                L <byte size> - Local byte Byte size
 			*/
 			args = command.substring("TYPE".length()).trim();
-			if(args.equals("A")) {
+			if (args.equals("A")) {
 				data.binary = false;
 				data.type = 'A';
 				data.typeSub = 'Z';
-			} else if(args.equals("A N")) {
+			} else if (args.equals("A N")) {
 				data.binary = false;
 				data.type = 'A';
 				data.typeSub = 'N';
-			} else if(args.equals("I")) {
+			} else if (args.equals("I")) {
 				data.binary = true;
 				data.type = 'I';
 				data.typeSub = 'Z';
-			} else if(args.equals("L 8")) {
+			} else if (args.equals("L 8")) {
 				data.binary = true;
 				//data.type = 'A';
 				//data.typeSub = 'N';
@@ -237,27 +243,27 @@ public class CommandHandler implements ClientCommandHandler {
 				return;
 			}
 			handler.sendClientMsg("200 Command OK.");
-		} else if(ucCommand.startsWith("STRU")) {
+		} else if (ucCommand.startsWith("STRU")) {
 			/*
 			FILE STRUCTURE
 	 		   F - File (no record structure) - default
                R - Record structure
                P - Page structure
 			*/
-			if(ucCommand.equals("STRU F")) {
+			if (ucCommand.equals("STRU F")) {
 				handler.sendClientMsg("200 Command OK.");
 			} else {
 				//obsolete
 				handler.sendClientMsg("504 Command not implemented for that parameter.");
 			}
-		} else if(ucCommand.startsWith("MODE")) {
+		} else if (ucCommand.startsWith("MODE")) {
 			/*
 			TRANSFER MODE
 			   S - Stream - Default
                B - Block
                C - Compressed
 			*/
-			if(ucCommand.equals("MODE S")) {
+			if (ucCommand.equals("MODE S")) {
 				handler.sendClientMsg("200 Command OK.");
 			} else {
 				//obsolete
@@ -265,47 +271,47 @@ public class CommandHandler implements ClientCommandHandler {
 			}
 		}
 		/////// FTP SERVICE COMMANDS ///////
-		else if(ucCommand.startsWith("RETR")) {
+		else if (ucCommand.startsWith("RETR")) {
 			data.isTransferring = true;
 			//RETRIEVE
 			args = command.substring("RETR".length()).trim();
 			String sfile = "";
 			//check if NOT PASSIVE, i.e PORT was set
-			if(data.ip!=null) {
-				try	{
+			if (data.ip != null) {
+				try {
 					data.socket = new Socket(
-						InetAddress.getByName(data.ip),	data.socketPort);
-				} catch (Exception e)	{
+							InetAddress.getByName(data.ip), data.socketPort);
+				} catch (Exception e) {
 					handler.sendClientMsg("425 Can't open data connection.");
 					data.isTransferring = false;
 					return;
-				}			
+				}
 			}
-			if(data.socket != null) {
-				if(args.charAt(0)=='/') {
+			if (data.socket != null) {
+				if (args.charAt(0) == '/') {
 					sfile = data.root + args;
 				} else {
 					sfile = data.root + data.wDir + "/" + args;
 				}
-				
+
 				File file = makeFile(sfile);
-				if(file.canRead() && file.isFile()) {
+				if (file.canRead() && file.isFile()) {
 					handler.sendClientMsg("150 I see that file.");
 					//send file
-					try	{
+					try {
 						data.sendFile(sfile);
 						//close data connection when done
-						if(data.ip!=null)
+						if (data.ip != null)
 							data.socket.close();
 						data.closeDataServer = true;
-						if(data.isStop==false)
+						if (data.isStop == false)
 							handler.sendClientMsg("226 File transferred successfully.");
 						else
 							handler.sendClientMsg("551 Error sending file : User Aborted");
 					} catch (Exception e) {
 						data.closeDataServer = true;
-						handler.sendClientMsg("551 Error sending file : "+e);
-						logger.log(Level.WARNING, "Error: "+e, e);
+						handler.sendClientMsg("551 Error sending file : " + e);
+						logger.log(Level.WARNING, "Error: " + e, e);
 					}
 				} else {
 					handler.sendClientMsg("451 Sorry, that isn't a data file");
@@ -314,221 +320,221 @@ public class CommandHandler implements ClientCommandHandler {
 				handler.sendClientMsg("425 Sorry no TCP connection was established.");
 			}
 			data.isTransferring = false;
-		} else if(ucCommand.startsWith("STOR")) {
+		} else if (ucCommand.startsWith("STOR")) {
 			//STORE 
 			args = command.substring("STOR".length()).trim();
 			handler.sendClientMsg("502 Command not implemented.");
-		} else if(ucCommand.startsWith("STOU")) {
+		} else if (ucCommand.startsWith("STOU")) {
 			//STORE UNIQUE - The 250 Transfer Started response
 			//must include the name generated.
 			args = command.substring("STOU".length()).trim();
 			handler.sendClientMsg("502 Command not implemented.");
-		} else if(ucCommand.startsWith("APPE")) {
+		} else if (ucCommand.startsWith("APPE")) {
 			//APPEND (with create)
 			handler.sendClientMsg("502 Command not implemented.");
-		} else if(ucCommand.startsWith("ALLO")) {
+		} else if (ucCommand.startsWith("ALLO")) {
 			//ALLOCATE - obsolete
 			handler.sendClientMsg("502 Command not implemented - obsolete.");
-		} else if(ucCommand.startsWith("REST")) {
+		} else if (ucCommand.startsWith("REST")) {
 			//RESTART transfer
 			//350 ok
 			handler.sendClientMsg("502 Command not implemented.");
-		} else if(ucCommand.startsWith("RNFR")) {
+		} else if (ucCommand.startsWith("RNFR")) {
 			//RENAME FROM
 			data.isRenameFrom = true;
 			handler.sendClientMsg("502 Command not implemented.");
-		} else if(ucCommand.startsWith("RNTO")) {
+		} else if (ucCommand.startsWith("RNTO")) {
 			//RENAME TO
-			if(!data.isRenameFrom) {
+			if (!data.isRenameFrom) {
 				//error should not happen
 			}
 			data.isRenameFrom = false;
 			handler.sendClientMsg("502 Command not implemented.");
-		} else if(ucCommand.startsWith("DELE")) {
+		} else if (ucCommand.startsWith("DELE")) {
 			//DELETE
 			handler.sendClientMsg("502 Command not implemented.");
-		} else if(ucCommand.startsWith("RMD")) {
+		} else if (ucCommand.startsWith("RMD")) {
 			//REMOVE DIRECTORY
 			handler.sendClientMsg("502 Command not implemented.");
-		} else if(ucCommand.startsWith("MKD")) {
+		} else if (ucCommand.startsWith("MKD")) {
 			//MAKE DIRECTORY
 			args = command.substring("MKD".length()).trim();
-			
-			File file = makeFile(data.root+data.wDir+args);
-			try	{
+
+			File file = makeFile(data.root + data.wDir + args);
+			try {
 				file.mkdir();
 				file.canRead();
 				temp = file.getAbsolutePath();
-				temp = "/"+MyString.replaceAll(temp,data.root,"");
-				temp = MyString.replaceAll(temp,"\\","/");
-				handler.sendClientMsg("257 \""+temp+"\" directory created");
-			} catch(Exception e) {
-				handler.sendClientMsg("521-Could not create dir \""+args+"\"");
-				handler.sendClientMsg("521 Error : "+e);
+				temp = "/" + MyString.replaceAll(temp, data.root, "");
+				temp = MyString.replaceAll(temp, "\\", "/");
+				handler.sendClientMsg("257 \"" + temp + "\" directory created");
+			} catch (Exception e) {
+				handler.sendClientMsg("521-Could not create dir \"" + args + "\"");
+				handler.sendClientMsg("521 Error : " + e);
 			}
-		} else if(ucCommand.startsWith("CWD")) {
+		} else if (ucCommand.startsWith("CWD")) {
 			//CHANGE DIRECTORY
 			temp = data.wDir;
 			args = command.substring("CWD".length()).trim();
-			if(data.wDir.charAt(data.wDir.length()-1)!='/')
+			if (data.wDir.charAt(data.wDir.length() - 1) != '/')
 				data.wDir += "/";
-			if(args.charAt(args.length()-1)!='/')
+			if (args.charAt(args.length() - 1) != '/')
 				args += "/";
 
-			if(args.charAt(0)!='/')
+			if (args.charAt(0) != '/')
 				data.wDir += args;
 			else
 				data.wDir = args;
 
-			File file = makeFile(data.root+data.wDir);
-			if(file.canRead() && file.isDirectory()) {
-				handler.sendClientMsg("250 Directory changed to "+data.wDir);
+			File file = makeFile(data.root + data.wDir);
+			if (file.canRead() && file.isDirectory()) {
+				handler.sendClientMsg("250 Directory changed to " + data.wDir);
 			} else {
-				if(file.canRead())
-					handler.sendClientMsg("550 "+data.wDir+": The directory name is invalid.");
+				if (file.canRead())
+					handler.sendClientMsg("550 " + data.wDir + ": The directory name is invalid.");
 				else
-					handler.sendClientMsg("550 "+data.wDir+": The system cannot find the file specified .");
+					handler.sendClientMsg("550 " + data.wDir + ": The system cannot find the file specified .");
 				data.wDir = temp;
 				logger.logp(Level.FINER, "CommandHandler", "handleCommand",
-					"Command=CWD; ERROR : 550 No such directory "+file.getCanonicalPath());
+						"Command=CWD; ERROR : 550 No such directory " + file.getCanonicalPath());
 			}
-		} else if(ucCommand.startsWith("PWD")) {
+		} else if (ucCommand.startsWith("PWD")) {
 			//PRINT WORKING DIRECTORY
-			temp = MyString.replaceAll(data.wDir,"\"","\"\"");
-			handler.sendClientMsg("257 \""+temp+"\"");
-		} else if(ucCommand.startsWith("LIST")) {
+			temp = MyString.replaceAll(data.wDir, "\"", "\"\"");
+			handler.sendClientMsg("257 \"" + temp + "\"");
+		} else if (ucCommand.startsWith("LIST")) {
 			data.isTransferring = true;
-			if(ucCommand.equals("LIST")) {
+			if (ucCommand.equals("LIST")) {
 				args = "";
 			} else {
 				args = command.substring("LIST".length()).trim();
-				if(args.equals("-latr")) //not known
-					args="";
+				if (args.equals("-latr")) //not known
+					args = "";
 			}
 
-			File file = makeFile(data.root+data.wDir+args);
-			
-			if( file.canRead() ) {
-				handler.sendClientMsg("150 Opening data connection for LIST "+data.wDir+args);
-				if(data.ip!=null) {
-					try	{
+			File file = makeFile(data.root + data.wDir + args);
+
+			if (file.canRead()) {
+				handler.sendClientMsg("150 Opening data connection for LIST " + data.wDir + args);
+				if (data.ip != null) {
+					try {
 						data.socket = new Socket(
-							InetAddress.getByName(data.ip), 
-							data.socketPort);
-					} catch (Exception e)	{
+								InetAddress.getByName(data.ip),
+								data.socketPort);
+					} catch (Exception e) {
 						handler.sendClientMsg("425 Can't open data connection.");
 						data.isTransferring = false;
 						return;
-					}			
+					}
 				}
 				String result = winDirList(file);
-				try	{
+				try {
 					data.sendData(result);
 					//close data connection when done
-					if(data.ip!=null) {
+					if (data.ip != null) {
 						data.socket.close();
 					}
 					data.closeDataServer = true;
-					if(data.isStop==false)
+					if (data.isStop == false)
 						handler.sendClientMsg("226 File transferred successfully.");
 					else
 						handler.sendClientMsg("551 Error sending file : User Aborted");
 				} catch (Exception e) {
-					if(data.ip!=null && data.socket!=null)
+					if (data.ip != null && data.socket != null)
 						data.socket.close();
 					data.closeDataServer = true;
-					handler.sendClientMsg("551 Error sending LIST : "+e);
-					logger.log(Level.WARNING, "Error: "+e, e);
+					handler.sendClientMsg("551 Error sending LIST : " + e);
+					logger.log(Level.WARNING, "Error: " + e, e);
 				}
 			} else {
-				handler.sendClientMsg("550 No such directory : "+data.wDir+args);
+				handler.sendClientMsg("550 No such directory : " + data.wDir + args);
 				logger.logp(Level.FINER, "CommandHandler", "handleCommand",
-					"Command=LIST; ERROR : 550 No such directory "+file);
+						"Command=LIST; ERROR : 550 No such directory " + file);
 			}
 			data.isTransferring = false;
-		} else if(ucCommand.startsWith("NLST")) {
+		} else if (ucCommand.startsWith("NLST")) {
 			//NAME LIST of directory only
 			data.isTransferring = true;
-			if(ucCommand.equals("NLST")) {
+			if (ucCommand.equals("NLST")) {
 				args = "";
 			} else {
 				args = command.substring("NLST".length()).trim();
 			}
 
-			File file = makeFile(data.root+data.wDir+args);
+			File file = makeFile(data.root + data.wDir + args);
 			String result = "";
-			if( file.canRead() && file.isDirectory() ) {
-				handler.sendClientMsg("150 Opening data connection for LIST "+data.wDir+args);
-				if(data.ip!=null) {
-					try	{
+			if (file.canRead() && file.isDirectory()) {
+				handler.sendClientMsg("150 Opening data connection for LIST " + data.wDir + args);
+				if (data.ip != null) {
+					try {
 						data.socket = new Socket(
-							InetAddress.getByName(data.ip), 
-							data.socketPort);
-					} catch (Exception e)	{
+								InetAddress.getByName(data.ip),
+								data.socketPort);
+					} catch (Exception e) {
 						handler.sendClientMsg("425 Can't open data connection.");
 						data.isTransferring = false;
 						return;
-					}			
+					}
 				}
 				String list[] = file.list();
-				for(int i=0;i<list.length;i++) {
-					if(!list[i].equals(".") && !list[i].equals("..") )
-						result +=list[i]+"\r\n";
+				for (int i = 0; i < list.length; i++) {
+					if (!list[i].equals(".") && !list[i].equals(".."))
+						result += list[i] + "\r\n";
 				}
-				try	{
+				try {
 					data.sendData(result);
 					//close data connection when done
-					if(data.ip!=null)
+					if (data.ip != null)
 						data.socket.close();
 					data.closeDataServer = true;
-					if(data.isStop==false)
+					if (data.isStop == false)
 						handler.sendClientMsg("226 File transferred successfully.");
 					else
 						handler.sendClientMsg("551 Error sending file : User Aborted");
 				} catch (Exception e) {
-					if(data.ip!=null && data.socket!=null)
+					if (data.ip != null && data.socket != null)
 						data.socket.close();
 					data.closeDataServer = true;
-					handler.sendClientMsg("551 Error sending NLST : "+e);
-					logger.log(Level.WARNING, "Error: "+e, e);
+					handler.sendClientMsg("551 Error sending NLST : " + e);
+					logger.log(Level.WARNING, "Error: " + e, e);
 				}
 			} else {
-				handler.sendClientMsg("550 No such directory : "+data.wDir+args);
+				handler.sendClientMsg("550 No such directory : " + data.wDir + args);
 				logger.logp(Level.FINER, "CommandHandler", "handleCommand",
-					"Command=NLST; ERROR : 550 No such directory "+file);
+						"Command=NLST; ERROR : 550 No such directory " + file);
 			}
 			data.isTransferring = false;
-		} else if(ucCommand.startsWith("SITE")) {
+		} else if (ucCommand.startsWith("SITE")) {
 			//SITE PARAMETERS
 			handler.sendClientMsg("502 Command not implemented.");
-		} else if(ucCommand.startsWith("SYST")) {
+		} else if (ucCommand.startsWith("SYST")) {
 			//SYSTEM - Assigned Numbers document [4]
 			// UNIX Type: L8
-			handler.sendClientMsg("215 "+"Windows_NT version 5.0");
-		} else if(ucCommand.startsWith("HELP")) {
+			handler.sendClientMsg("215 " + "Windows_NT version 5.0");
+		} else if (ucCommand.startsWith("HELP")) {
 			//HELP
 			//The reply is type 211 or 214.
 			handler.sendClientMsg("502 Command not implemented.");
-		} else if(ucCommand.startsWith("NOOP")) {
+		} else if (ucCommand.startsWith("NOOP")) {
 			//NOOP - OK reply
 			handler.sendClientMsg("200 OK");
-		} else if(ucCommand.startsWith("SIZE")) {
+		} else if (ucCommand.startsWith("SIZE")) {
 			//SIZE OF FILE
 			args = command.substring("SIZE".length()).trim();
 			File file = null;
-			
+
 			logger.log(Level.FINE, "data.root: {0}", data.root);
 			logger.log(Level.FINE, "data.wDir: {0}", data.wDir);
 			logger.log(Level.FINE, "args: {0}", args);
-			
-			if(args.startsWith("/")) {
-				file = makeFile(data.root+args);
+
+			if (args.startsWith("/")) {
+				file = makeFile(data.root + args);
 			} else {
-				file = makeFile(data.root+data.wDir+args);
+				file = makeFile(data.root + data.wDir + args);
 			}
-			
-			if( file.canRead() ) {
-				handler.sendClientMsg("213 "+file.length());
+
+			if (file.canRead()) {
+				handler.sendClientMsg("213 " + file.length());
 			} else {
 				handler.sendClientMsg("550 No such file.");
 			}
@@ -554,22 +560,22 @@ public class CommandHandler implements ClientCommandHandler {
 		File file = new File(dir);
 		File subFile = null;
 		String result = "";
-		if( file.canRead() ) {
+		if (file.canRead()) {
 			String list[] = file.list();
-			for(int i=0;i<list.length;i++) {
+			for (int i = 0; i < list.length; i++) {
 				//if(list[i].equals(".") || list[i].equals("..") )
 				//	continue;
-				subFile = new File(dir+File.separator+list[i]);
+				subFile = new File(dir + File.separator + list[i]);
 				result += "+";
-				result +="i"+subFile.hashCode()+",";
-				result +="s"+subFile.length()+",";
-				result +="m"+subFile.lastModified()+",";
-				if(subFile.isFile()) {
-					result +="r,";
+				result += "i" + subFile.hashCode() + ",";
+				result += "s" + subFile.length() + ",";
+				result += "m" + subFile.lastModified() + ",";
+				if (subFile.isFile()) {
+					result += "r,";
 				} else {
-					result +="/,";
+					result += "/,";
 				}
-				result +="\t"+list[i]+"\r\n";
+				result += "\t" + list[i] + "\r\n";
 			}
 		}
 		return result;
@@ -578,26 +584,26 @@ public class CommandHandler implements ClientCommandHandler {
 	private String winDirList(File file) {
 		File subFile = null;
 		StringBuilder result = new StringBuilder();
-		if( file.canRead() ) {
+		if (file.canRead()) {
 			String list[] = file.list();
 			logger.log(Level.FINE, "dir size: " + list.length);
 			SimpleDateFormat dformat = new SimpleDateFormat("MM-dd-yy  HH:mm:a ");
-			
-			for(int i=0;i<list.length;i++) {
-				subFile = new File(file.getAbsolutePath()+File.separator+list[i]);				
-				result.append( dformat.format(new Date(subFile.lastModified())) );
-				if(subFile.isFile()) {
+
+			for (int i = 0; i < list.length; i++) {
+				subFile = new File(file.getAbsolutePath() + File.separator + list[i]);
+				result.append(dformat.format(new Date(subFile.lastModified())));
+				if (subFile.isFile()) {
 					//20 field length
 					StringBuilder size = new StringBuilder(20);
 					size.append(subFile.length());
-					while(size.length()<20) {
-						size.insert(0," ");
+					while (size.length() < 20) {
+						size.insert(0, " ");
 					}
-					result.append( size.toString() );
+					result.append(size.toString());
 				} else {
-					result.append( "      <DIR>         ");
+					result.append("      <DIR>         ");
 				}
-				result.append(" ").append(list[i]).append( "\r\n");
+				result.append(" ").append(list[i]).append("\r\n");
 			}
 		}
 		return result.toString();

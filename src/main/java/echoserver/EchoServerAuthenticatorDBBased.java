@@ -1,10 +1,10 @@
 /*
- * This file is part of the QuickServer library 
+ * This file is part of the QuickServer library
  * Copyright (C) 2003-2005 QuickServer.org
  *
  * Use, modification, copying and distribution of this software is subject to
- * the terms and conditions of the GNU Lesser General Public License. 
- * You should have received a copy of the GNU LGP License along with this 
+ * the terms and conditions of the GNU Lesser General Public License.
+ * You should have received a copy of the GNU LGP License along with this
  * library; if not, you can download a copy from <http://www.quickserver.org/>.
  *
  * For questions, suggestions, bug-reports, enhancement-requests etc.
@@ -14,14 +14,18 @@
 
 package echoserver;
 
-import org.quickserver.net.server.*;
-import java.io.*;
-import java.sql.*;
-import java.util.*;
 import org.quickserver.net.AppException;
+import org.quickserver.net.server.AuthStatus;
+import org.quickserver.net.server.ClientHandler;
+import org.quickserver.net.server.QuickAuthenticationHandler;
+
+import java.io.IOException;
+import java.sql.Connection;
+import java.sql.ResultSet;
+import java.sql.Statement;
 
 public class EchoServerAuthenticatorDBBased extends QuickAuthenticationHandler {
-	public AuthStatus askAuthentication(ClientHandler handler) 
+	public AuthStatus askAuthentication(ClientHandler handler)
 			throws IOException, AppException {
 		Data data = (Data) handler.getClientData();
 		data.setLastAsked("U");
@@ -29,18 +33,18 @@ public class EchoServerAuthenticatorDBBased extends QuickAuthenticationHandler {
 		return null;
 	}
 
-	public AuthStatus handleAuthentication(ClientHandler handler, String command) 
+	public AuthStatus handleAuthentication(ClientHandler handler, String command)
 			throws IOException, AppException {
-		Data data = (Data)handler.getClientData();
+		Data data = (Data) handler.getClientData();
 
-		if(data.getLastAsked().equals("U")) {
+		if (data.getLastAsked().equals("U")) {
 			data.setUsername(command);
 			data.setLastAsked("P");
 			handler.sendClientMsg("Password :");
-		} else if(data.getLastAsked().equals("P")) {
+		} else if (data.getLastAsked().equals("P")) {
 			data.setPassword(command.getBytes());
-			
-			if(validate(handler, data.getUsername(), data.getPassword())) {
+
+			if (validate(handler, data.getUsername(), data.getPassword())) {
 				handler.sendClientMsg("Auth OK");
 				data.setPassword(null);
 				handler.sendClientMsg(data.getWelcomeMsg());
@@ -62,23 +66,23 @@ public class EchoServerAuthenticatorDBBased extends QuickAuthenticationHandler {
 		try {
 			con = handler.getServer().getDBPoolUtil().getConnection("TestDB1");
 			Statement s = con.createStatement();
-			ResultSet r = s.executeQuery("SELECT welcomemesage FROM Auth "+
-				"WHERE USERNAME='"+username+"' AND PASSWORD='"+new String(password)+"'");
-			if(r.next()) {
-				Data data = (Data)handler.getClientData();
+			ResultSet r = s.executeQuery("SELECT welcomemesage FROM Auth " +
+					"WHERE USERNAME='" + username + "' AND PASSWORD='" + new String(password) + "'");
+			if (r.next()) {
+				Data data = (Data) handler.getClientData();
 				data.setWelcomeMsg(r.getString(1));
 				return true;
 			} else {
 				return false;
-			}	
-		} catch(Exception e) {
+			}
+		} catch (Exception e) {
 			return false;
 		} finally {
-			try	{
+			try {
 				con.close();
-			} catch(Exception e) {
-				handler.sendSystemMsg("IGNORING: "+e);
-			}			
+			} catch (Exception e) {
+				handler.sendSystemMsg("IGNORING: " + e);
+			}
 		}
 	}
 }

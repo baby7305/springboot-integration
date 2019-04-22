@@ -1,10 +1,10 @@
 /*
- * This file is part of the QuickServer library 
+ * This file is part of the QuickServer library
  * Copyright (C) QuickServer.org
  *
  * Use, modification, copying and distribution of this software is subject to
- * the terms and conditions of the GNU Lesser General Public License. 
- * You should have received a copy of the GNU LGP License along with this 
+ * the terms and conditions of the GNU Lesser General Public License.
+ * You should have received a copy of the GNU LGP License along with this
  * library; if not, you can download a copy from <http://www.quickserver.org/>.
  *
  * For questions, suggestions, bug-reports, enhancement-requests etc.
@@ -14,15 +14,16 @@
 
 package org.quickserver.sql;
 
-import org.quickserver.util.xmlreader.*;
 import java.sql.Connection;
-import java.util.*;
+import java.util.Iterator;
+
 /**
  * This interface is used by {@link org.quickserver.net.server.QuickServer}
  * load all db drivers.
- * It is also used to get {@link java.sql.Connection} object by 
+ * It is also used to get {@link java.sql.Connection} object by
  * the QuickServer when it encounters &lt;db-object-pool&gt;...&lt;/db-object-pool&gt;
  * in its configuration file.
+ *
  * @author Akshathkumar Shetty
  * @since 1.3
  */
@@ -47,7 +48,7 @@ public interface DBPoolUtil {
 	public boolean clean();
 
 	/**
-	 * Returns the {@link java.sql.Connection} object for the 
+	 * Returns the {@link java.sql.Connection} object for the
 	 * DatabaseConnection that is identified by id passed. If id passed
 	 * does not match with any connection loaded by this class it will
 	 * return <code>null</code>.

@@ -1,10 +1,10 @@
 /*
- * This file is part of the QuickServer library 
+ * This file is part of the QuickServer library
  * Copyright (C) QuickServer.org
  *
  * Use, modification, copying and distribution of this software is subject to
- * the terms and conditions of the GNU Lesser General Public License. 
- * You should have received a copy of the GNU LGP License along with this 
+ * the terms and conditions of the GNU Lesser General Public License.
+ * You should have received a copy of the GNU LGP License along with this
  * library; if not, you can download a copy from <http://www.quickserver.org/>.
  *
  * For questions, suggestions, bug-reports, enhancement-requests etc.
@@ -14,18 +14,24 @@
 
 package org.quickserver.util.pool;
 
-import java.util.*;
+import org.apache.commons.pool.ObjectPool;
+import org.apache.commons.pool.PoolableObjectFactory;
+
+import java.util.Collections;
+import java.util.Iterator;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
-import org.apache.commons.pool.*;
 
 /**
  * This class that creates QSObjectPool from ObjectPool passed to it.
+ *
  * @since 1.4.5
  */
 public class MakeQSObjectPool implements QSObjectPool, QSObjectPoolMaker {
 	protected ObjectPool objectPool = null;
 	protected List list = null;
-	
+
 	protected AtomicLong activeCount = new AtomicLong();
 	private long highestActiveCount;
 
@@ -46,9 +52,9 @@ public class MakeQSObjectPool implements QSObjectPool, QSObjectPoolMaker {
 		list = Collections.synchronizedList(new LinkedList());
 	}
 
-	public void returnObject(Object obj) throws Exception {				
+	public void returnObject(Object obj) throws Exception {
 		objectPool.returnObject(obj);
-		if(list.remove(obj)) {
+		if (list.remove(obj)) {
 			activeCount.decrementAndGet();
 		}
 	}
@@ -56,8 +62,8 @@ public class MakeQSObjectPool implements QSObjectPool, QSObjectPoolMaker {
 	public Object borrowObject() throws Exception {
 		Object obj = objectPool.borrowObject();
 		list.add(obj);
-		
-		if(getHighestActiveCount() < activeCount.incrementAndGet()) {
+
+		if (getHighestActiveCount() < activeCount.incrementAndGet()) {
 			setHighestActiveCount(activeCount.get());
 		}
 		return obj;
@@ -83,7 +89,7 @@ public class MakeQSObjectPool implements QSObjectPool, QSObjectPoolMaker {
 		objectPool.addObject();
 	}
 
-	public void clear() throws Exception  {
+	public void clear() throws Exception {
 		objectPool.clear();
 	}
 
@@ -101,7 +107,7 @@ public class MakeQSObjectPool implements QSObjectPool, QSObjectPoolMaker {
 
 	public void setFactory(PoolableObjectFactory factory) {
 		objectPool.setFactory(factory);
-	}	
+	}
 
 	/**
 	 * @return the highestActiveCount

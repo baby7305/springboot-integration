@@ -1,10 +1,10 @@
 /*
- * This file is part of the QuickServer library 
+ * This file is part of the QuickServer library
  * Copyright (C) 2003-2005 QuickServer.org
  *
  * Use, modification, copying and distribution of this software is subject to
- * the terms and conditions of the GNU Lesser General Public License. 
- * You should have received a copy of the GNU LGP License along with this 
+ * the terms and conditions of the GNU Lesser General Public License.
+ * You should have received a copy of the GNU LGP License along with this
  * library; if not, you can download a copy from <http://www.quickserver.org/>.
  *
  * For questions, suggestions, bug-reports, enhancement-requests etc.
@@ -15,8 +15,11 @@
 package xmladder;
 
 import org.apache.commons.digester3.Digester;
-import java.util.logging.*;
-import java.io.*;
+
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.util.logging.Logger;
+
 /*
 	<add-number-res>
 		<result-type>sum</result-type>
@@ -34,12 +37,12 @@ public class AddNumberRes {
 
 	static {
 		digester = new Digester();
-	    digester.setValidating(false);
+		digester.setValidating(false);
 		digester.setUseContextClassLoader(true);
 		String mainTag = "add-number-res";
 		digester.addObjectCreate(mainTag, AddNumberRes.class);
-		digester.addBeanPropertySetter(mainTag+"/result-type", "type");
-		digester.addBeanPropertySetter(mainTag+"/result-value", "value");
+		digester.addBeanPropertySetter(mainTag + "/result-type", "type");
+		digester.addBeanPropertySetter(mainTag + "/result-value", "value");
 	}
 
 	private String type;
@@ -82,11 +85,11 @@ public class AddNumberRes {
 		return sb.toString();
 	}
 
-	public static AddNumberRes fromXML(String data) 
+	public static AddNumberRes fromXML(String data)
 			throws IOException, org.xml.sax.SAXException {
-		logger.fine("Got xml:\n"+ data);		
+		logger.fine("Got xml:\n" + data);
 		AddNumberRes addNumberRes = (AddNumberRes) digester.parse(
-			new ByteArrayInputStream(data.getBytes("UTF-8")));
+				new ByteArrayInputStream(data.getBytes("UTF-8")));
 		return addNumberRes;
 	}
 }

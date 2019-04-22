@@ -1,10 +1,10 @@
 /*
- * This file is part of the QuickServer library 
+ * This file is part of the QuickServer library
  * Copyright (C) QuickServer.org
  *
  * Use, modification, copying and distribution of this software is subject to
- * the terms and conditions of the GNU Lesser General Public License. 
- * You should have received a copy of the GNU LGP License along with this 
+ * the terms and conditions of the GNU Lesser General Public License.
+ * You should have received a copy of the GNU LGP License along with this
  * library; if not, you can download a copy from <http://www.quickserver.org/>.
  *
  * For questions, suggestions, bug-reports, enhancement-requests etc.
@@ -14,16 +14,21 @@
 
 package org.quickserver.util.pool.thread;
 
-import java.util.*;
-import org.quickserver.util.pool.*;
-import org.apache.commons.pool.*;
-import org.quickserver.net.server.*;
+import org.apache.commons.pool.ObjectPool;
+import org.quickserver.net.server.ClientHandler;
+import org.quickserver.util.pool.QSObjectPool;
 import org.quickserver.util.xmlreader.PoolConfig;
-import java.util.logging.*;
+
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
+import java.util.NoSuchElementException;
+import java.util.logging.Logger;
 
 /**
- * This is a class for managing the pool of threads for 
+ * This is a class for managing the pool of threads for
  * handling clients.
+ *
  * @author Akshathkumar Shetty
  * @since 1.3
  */
@@ -35,7 +40,7 @@ public class ClientPool {
 	protected PoolConfig poolConfig;
 	private int countNioWriteThreads; //v1.4.6
 	private int maxThreadsForNioWrite = 10;
-			
+
 	public ClientPool(QSObjectPool objectPool, PoolConfig poolConfig) {
 		this.poolConfig = poolConfig;
 		pool = objectPool;
@@ -49,58 +54,58 @@ public class ClientPool {
 		addClient(r, false);
 	}
 
-	public void addClient(Runnable r, boolean keepObjOnFail) 
+	public void addClient(Runnable r, boolean keepObjOnFail)
 			throws NoSuchElementException {
 		//logger.finest("Adding Runnable: "+r);
-        ClientThread ct = null;
-        synchronized(this) {
-            clients.add(r);        
-            
-            try {
-                ct = (ClientThread)pool.borrowObject();
-                if(ct.isReady()==false) {
-                    //ct.start();
-                    wait(500); //timeout was just in case :-)
-                    //Thread.yield();
-                }			
+		ClientThread ct = null;
+		synchronized (this) {
+			clients.add(r);
 
-            } catch(NoSuchElementException e) {
-                logger.info("No free threads: "+e);
-                if(keepObjOnFail==false) {                
-                    clients.remove(r);                
-                }
-                throw e;
-            } catch(Exception e) {
-                logger.warning("Error in addClient: "+e+", Closing client: "+(ClientHandler)r);
-                try {
-                    ((ClientHandler)r).forceClose();
-                } catch(Exception er) {
-                    logger.warning("Error closing client: "+er);
-                }
-                try {
-                    if(ct!=null) pool.returnObject(ct);
-                } catch(Exception er) {
-                    logger.warning("Error in returning thread: "+er);
-                }
-            }
-        }
-        
-        synchronized(ct) {
-            ct.notify();
-        }
- 	}
+			try {
+				ct = (ClientThread) pool.borrowObject();
+				if (ct.isReady() == false) {
+					//ct.start();
+					wait(500); //timeout was just in case :-)
+					//Thread.yield();
+				}
+
+			} catch (NoSuchElementException e) {
+				logger.info("No free threads: " + e);
+				if (keepObjOnFail == false) {
+					clients.remove(r);
+				}
+				throw e;
+			} catch (Exception e) {
+				logger.warning("Error in addClient: " + e + ", Closing client: " + (ClientHandler) r);
+				try {
+					((ClientHandler) r).forceClose();
+				} catch (Exception er) {
+					logger.warning("Error closing client: " + er);
+				}
+				try {
+					if (ct != null) pool.returnObject(ct);
+				} catch (Exception er) {
+					logger.warning("Error in returning thread: " + er);
+				}
+			}
+		}
+
+		synchronized (ct) {
+			ct.notify();
+		}
+	}
 
 	public synchronized void returnObject(Object object) {
 		try {
 			pool.returnObject(object);
-		} catch(Exception e) {
-			logger.warning("IGONRED: Error while returning object : "+e);
-			((Thread)object).interrupt();
+		} catch (Exception e) {
+			logger.warning("IGONRED: Error while returning object : " + e);
+			((Thread) object).interrupt();
 		}
 	}
 
 	public synchronized Runnable getClient() {
-		if(clients.isEmpty()) {
+		if (clients.isEmpty()) {
 			return null;
 		}
 		return (Runnable) clients.remove(0);
@@ -110,7 +115,7 @@ public class ClientPool {
 	 * @since 1.4.5
 	 */
 	public boolean isClientAvailable() {
-		if(clients.isEmpty()) {
+		if (clients.isEmpty()) {
 			return false;
 		} else {
 			return true;
@@ -127,6 +132,7 @@ public class ClientPool {
 
 	/**
 	 * Return the number of instances currently borrowed from my pool.
+	 *
 	 * @since 1.4.1
 	 */
 	public int getNumActive() {
@@ -135,6 +141,7 @@ public class ClientPool {
 
 	/**
 	 * Return the number of instances currently idle in my pool.
+	 *
 	 * @since 1.4.1
 	 */
 	public int getNumIdle() {
@@ -144,18 +151,20 @@ public class ClientPool {
 	/**
 	 * Returns iterator containing all the active
 	 * threads i.e ClientHandler handling connected clients.
+	 *
 	 * @since 1.3.1
 	 */
 	public final Iterator getAllClientThread() {
-		return ((QSObjectPool)pool).getAllActiveObjects();
+		return ((QSObjectPool) pool).getAllActiveObjects();
 	}
 
 	public Object getObjectToSynchronize() {
-		return ((QSObjectPool)pool).getObjectToSynchronize();
+		return ((QSObjectPool) pool).getObjectToSynchronize();
 	}
 
 	/**
-	 * Returns PoolConfig object that configured this pool 
+	 * Returns PoolConfig object that configured this pool
+	 *
 	 * @since 1.4.5
 	 */
 	public PoolConfig getPoolConfig() {
@@ -163,8 +172,9 @@ public class ClientPool {
 	}
 
 	/**
-	 * Sets the maximum threads allowed for nio write. If set to 0 or less no limit is 
+	 * Sets the maximum threads allowed for nio write. If set to 0 or less no limit is
 	 * imposed.
+	 *
 	 * @since 1.4.6
 	 */
 	public void setMaxThreadsForNioWrite(int count) {
@@ -173,6 +183,7 @@ public class ClientPool {
 
 	/**
 	 * Returns the maximum threads allowed for nio write
+	 *
 	 * @since 1.4.6
 	 */
 	public int getMaxThreadsForNioWrite() {
@@ -180,19 +191,21 @@ public class ClientPool {
 	}
 
 	/**
-	 * Notifies when NIO write is complete. 
+	 * Notifies when NIO write is complete.
+	 *
 	 * @since 1.4.6
 	 */
 	protected void nioWriteEnd() {
 		countNioWriteThreads--;
-		if(countNioWriteThreads<0) {
+		if (countNioWriteThreads < 0) {
 			logger.warning("countNioWriteThreads should not go less than 0");
 			countNioWriteThreads = 0;
 		}
 	}
 
 	/**
-	 * Notifies when NIO write is about to start. 
+	 * Notifies when NIO write is about to start.
+	 *
 	 * @since 1.4.6
 	 */
 	protected void nioWriteStart() {
@@ -201,10 +214,11 @@ public class ClientPool {
 
 	/**
 	 * Method to suggest if nio write should be sent for processing.
+	 *
 	 * @since 1.4.6
 	 */
 	public boolean shouldNioWriteHappen() {
-		if(maxThreadsForNioWrite <= 0 ||
+		if (maxThreadsForNioWrite <= 0 ||
 				countNioWriteThreads < maxThreadsForNioWrite) {
 			return true;
 		} else {

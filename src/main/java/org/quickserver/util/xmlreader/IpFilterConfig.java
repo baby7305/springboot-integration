@@ -1,10 +1,10 @@
 /*
- * This file is part of the QuickServer library 
+ * This file is part of the QuickServer library
  * Copyright (C) QuickServer.org
  *
  * Use, modification, copying and distribution of this software is subject to
- * the terms and conditions of the GNU Lesser General Public License. 
- * You should have received a copy of the GNU LGP License along with this 
+ * the terms and conditions of the GNU Lesser General Public License.
+ * You should have received a copy of the GNU LGP License along with this
  * library; if not, you can download a copy from <http://www.quickserver.org/>.
  *
  * For questions, suggestions, bug-reports, enhancement-requests etc.
@@ -14,17 +14,20 @@
 
 package org.quickserver.util.xmlreader;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Iterator;
+
 /**
  * This class encapsulate the IP based Filter config.
  * The xml is &lt;ip-filter&gt;...&lt;/ip-filter&gt;<br>
- * <b>Note:</b> Make sure that access from 127.0.0.1 is allowed at 
+ * <b>Note:</b> Make sure that access from 127.0.0.1 is allowed at
  * all times, else some of the QsAdmin command will fail.
+ *
  * @author Akshathkumar Shetty
  * @since 1.3.3
  */
 public class IpFilterConfig implements java.io.Serializable {
-	private ArrayList ipCollection=null;
+	private ArrayList ipCollection = null;
 	private boolean enable = false;
 	private boolean allowAccess = false;
 
@@ -36,7 +39,7 @@ public class IpFilterConfig implements java.io.Serializable {
 	 * Adds a Client Ip Address to the list
 	 */
 	public void addClientIpAddress(String clientIpAddress) {
-		if(clientIpAddress!=null) {
+		if (clientIpAddress != null) {
 			ipCollection.add(clientIpAddress);
 		}
 	}
@@ -51,18 +54,21 @@ public class IpFilterConfig implements java.io.Serializable {
 	public Iterator iterator() {
 		return ipCollection.iterator();
 	}
-	
+
 	/**
 	 * Sets the IP filter enable flag.
 	 * XML Tag: &lt;ip-filter&gt;&lt;enable&gt;true&lt;/enable&gt;&lt;/ip-filter&gt;
 	 * Allowed values = <code>true</code> | <code>false</code>
- 	 * @see #getEnable
+	 *
+	 * @see #getEnable
 	 */
 	public void setEnable(boolean enable) {
 		this.enable = enable;
 	}
+
 	/**
 	 * Returns the IP filter enable flag.
+	 *
 	 * @see #setEnable
 	 */
 	public boolean getEnable() {
@@ -73,13 +79,16 @@ public class IpFilterConfig implements java.io.Serializable {
 	 * Sets the allow access flag.
 	 * XML Tag: &lt;ip-filter&gt;&lt;allow-access&gt;true&lt;/allow-access&gt;&lt;/ip-filter&gt;
 	 * Allowed values = <code>true</code> | <code>false</code>
- 	 * @see #getAllowAccess
+	 *
+	 * @see #getAllowAccess
 	 */
 	public void setAllowAccess(boolean enable) {
 		this.allowAccess = enable;
 	}
+
 	/**
 	 * Returns the allow access flag.
+	 *
 	 * @see #setAllowAccess
 	 */
 	public boolean getAllowAccess() {
@@ -88,18 +97,19 @@ public class IpFilterConfig implements java.io.Serializable {
 
 	/**
 	 * Returns XML config of this class.
+	 *
 	 * @since 1.3
 	 */
 	public String toXML(String pad) {
-		if(pad==null) pad="";
+		if (pad == null) pad = "";
 		StringBuilder sb = new StringBuilder();
 		sb.append(pad).append("<ip-filter>\n");
 		sb.append(pad).append("\t<enable>").append(getEnable()).append("</enable>\n");
 		sb.append(pad).append("\t<allow-access>").append(getAllowAccess()).append("</allow-access>\n");
 		sb.append(pad).append("\t<ip-collection>\n");
 		Iterator iterator = iterator();
-		while(iterator.hasNext()) {
-			String cip = (String)iterator.next();
+		while (iterator.hasNext()) {
+			String cip = (String) iterator.next();
 			sb.append(pad).append("\t\t<client-ip-address>").append(cip).append("</client-ip-address>\n");
 		}
 		sb.append(pad).append("\t</ip-collection>\n");

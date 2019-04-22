@@ -1,10 +1,10 @@
 /*
- * This file is part of the QuickServer library 
+ * This file is part of the QuickServer library
  * Copyright (C) QuickServer.org
  *
  * Use, modification, copying and distribution of this software is subject to
- * the terms and conditions of the GNU Lesser General Public License. 
- * You should have received a copy of the GNU LGP License along with this 
+ * the terms and conditions of the GNU Lesser General Public License.
+ * You should have received a copy of the GNU LGP License along with this
  * library; if not, you can download a copy from <http://www.quickserver.org/>.
  *
  * For questions, suggestions, bug-reports, enhancement-requests etc.
@@ -17,15 +17,16 @@ package org.quickserver.util.xmlreader;
 /**
  * This class encapsulate the QSAdmin Plugin configuration.
  * The xml is &lt;qsadmin-plugin&gt;...&lt;/qsadmin-plugin&gt;
+ *
  * @author Akshathkumar Shetty
  * @since 1.3.2
  */
 public class QSAdminPluginConfig implements java.io.Serializable {
-	private String name="";
-	private String desc="";
-	private String type="";
-	private String mainClass="";
-	private String active="no";
+	private String name = "";
+	private String desc = "";
+	private String type = "";
+	private String mainClass = "";
+	private String active = "no";
 
 	/**
 	 * @return description
@@ -38,7 +39,7 @@ public class QSAdminPluginConfig implements java.io.Serializable {
 	 * @param desc
 	 */
 	public void setDesc(String desc) {
-		if(desc!=null)
+		if (desc != null)
 			this.desc = desc;
 	}
 
@@ -46,7 +47,7 @@ public class QSAdminPluginConfig implements java.io.Serializable {
 	 * @param active Valid Values: <code>true</code> or <code>false</code>
 	 */
 	public void setActive(String active) {
-		if(active!=null)
+		if (active != null)
 			this.active = active;
 	}
 
@@ -56,7 +57,7 @@ public class QSAdminPluginConfig implements java.io.Serializable {
 	public String getActive() {
 		return active;
 	}
-	
+
 	/**
 	 * @return MainClass
 	 */
@@ -68,7 +69,7 @@ public class QSAdminPluginConfig implements java.io.Serializable {
 	 * @param mainClass
 	 */
 	public void setMainClass(String mainClass) {
-		if(mainClass!=null)
+		if (mainClass != null)
 			this.mainClass = mainClass;
 	}
 
@@ -83,13 +84,14 @@ public class QSAdminPluginConfig implements java.io.Serializable {
 	 * @param name
 	 */
 	public void setName(String name) {
-		if(name!=null)
+		if (name != null)
 			this.name = name;
 	}
 
 	/**
 	 * Returns class which plugin extends or implements.
-	 * @return type of plugin. 
+	 *
+	 * @return type of plugin.
 	 */
 	public String getType() {
 		return type;
@@ -99,16 +101,17 @@ public class QSAdminPluginConfig implements java.io.Serializable {
 	 * @param type of class which plugin extends or implements.
 	 */
 	public void setType(String type) {
-		if(type!=null)
+		if (type != null)
 			this.type = type;
 	}
 
 	/**
 	 * Returns XML config of this class.
+	 *
 	 * @since 1.3
 	 */
 	public String toXML(String pad) {
-		if(pad==null) pad="";
+		if (pad == null) pad = "";
 		StringBuilder sb = new StringBuilder();
 		sb.append(pad).append("<qsadmin-plugin>\n");
 		sb.append(pad).append("\t<name>").append(getName()).append("</name>\n");

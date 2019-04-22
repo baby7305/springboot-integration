@@ -1,10 +1,10 @@
 /*
- * This file is part of the QuickServer library 
+ * This file is part of the QuickServer library
  * Copyright (C) QuickServer.org
  *
  * Use, modification, copying and distribution of this software is subject to
- * the terms and conditions of the GNU Lesser General Public License. 
- * You should have received a copy of the GNU LGP License along with this 
+ * the terms and conditions of the GNU Lesser General Public License.
+ * You should have received a copy of the GNU LGP License along with this
  * library; if not, you can download a copy from <http://www.quickserver.org/>.
  *
  * For questions, suggestions, bug-reports, enhancement-requests etc.
@@ -14,19 +14,22 @@
 
 package org.quickserver.net.server.impl;
 
-import java.io.*;
-import java.util.*;
-import java.util.logging.*;
-import org.quickserver.util.pool.*;
-import org.quickserver.net.server.*;
-import java.util.regex.*;
+import org.quickserver.net.server.ClientHandler;
+import org.quickserver.net.server.ClientIdentifier;
+
+import java.util.ArrayList;
+import java.util.ConcurrentModificationException;
+import java.util.Iterator;
+import java.util.logging.Logger;
+import java.util.regex.Pattern;
 
 /**
  * Optimistic Client Identifier implementation.
+ *
  * @author Akshathkumar Shetty
  * @since 1.4.5
  */
-public class OptimisticClientIdentifier extends BasicClientIdentifier  {
+public class OptimisticClientIdentifier extends BasicClientIdentifier {
 	private static final Logger logger = Logger.getLogger(OptimisticClientIdentifier.class.getName());
 	private ClientIdentifier backupClientIdentifier;
 	private static final int MAX_TRY_COUNT = 4;
@@ -38,15 +41,15 @@ public class OptimisticClientIdentifier extends BasicClientIdentifier  {
 	private ClientHandler findFirstClientById(String id, int callCount) {
 		ClientHandler foundClientHandler = null;
 		try {
-			Iterator iterator = findAllClient();			
-			while(iterator.hasNext()) {
+			Iterator iterator = findAllClient();
+			while (iterator.hasNext()) {
 				foundClientHandler = checkClientId(
-					(ClientHandler) iterator.next(), id);
+						(ClientHandler) iterator.next(), id);
 
-				if(foundClientHandler!=null) break;
+				if (foundClientHandler != null) break;
 			}//endof while
-		} catch(ConcurrentModificationException e) {
-			if(callCount<MAX_TRY_COUNT) {
+		} catch (ConcurrentModificationException e) {
+			if (callCount < MAX_TRY_COUNT) {
 				//start over again.
 				foundClientHandler = findFirstClientById(id, ++callCount);
 			} else {
@@ -60,22 +63,23 @@ public class OptimisticClientIdentifier extends BasicClientIdentifier  {
 	public Iterator findAllClientById(String pattern) {
 		return findAllClientById(pattern, 0);
 	}
+
 	private Iterator findAllClientById(String pattern, int callCount) {
 		ArrayList list = new ArrayList();
 		Pattern p = Pattern.compile(pattern);
 		ClientHandler foundClientHandler = null;
-		
-		try {
-			Iterator iterator = findAllClient();			
-			while(iterator.hasNext()) {
-				foundClientHandler = checkClientId(
-					(ClientHandler) iterator.next(), p);
 
-				if(foundClientHandler!=null) 
+		try {
+			Iterator iterator = findAllClient();
+			while (iterator.hasNext()) {
+				foundClientHandler = checkClientId(
+						(ClientHandler) iterator.next(), p);
+
+				if (foundClientHandler != null)
 					list.add(foundClientHandler);
 			}//endof while
-		} catch(ConcurrentModificationException e) {
-			if(callCount<MAX_TRY_COUNT) {
+		} catch (ConcurrentModificationException e) {
+			if (callCount < MAX_TRY_COUNT) {
 				//start over again.
 				list = null;
 				return findAllClientById(pattern, ++callCount);
@@ -90,20 +94,21 @@ public class OptimisticClientIdentifier extends BasicClientIdentifier  {
 	public ClientHandler findClientByKey(String key) {
 		return findClientByKey(key, 0);
 	}
+
 	private ClientHandler findClientByKey(String key, int callCount) {
 		ClientHandler foundClientHandler = null;
 		try {
 			Iterator iterator = findAllClient();
-			while(iterator.hasNext()) {
-				foundClientHandler = checkClientKey( 
-					(ClientHandler) iterator.next(), key);
+			while (iterator.hasNext()) {
+				foundClientHandler = checkClientKey(
+						(ClientHandler) iterator.next(), key);
 
-				if(foundClientHandler!=null) break;
+				if (foundClientHandler != null) break;
 			}//endof while
-		} catch(ConcurrentModificationException e) {
-			if(callCount<MAX_TRY_COUNT) {
+		} catch (ConcurrentModificationException e) {
+			if (callCount < MAX_TRY_COUNT) {
 				//start over again.
-				foundClientHandler = findClientByKey(key,  ++callCount);
+				foundClientHandler = findClientByKey(key, ++callCount);
 			} else {
 				logger.finest("Going for backup..");
 				foundClientHandler = getBackupClientIdentifier().findClientByKey(key);
@@ -115,6 +120,7 @@ public class OptimisticClientIdentifier extends BasicClientIdentifier  {
 	public Iterator findAllClientByKey(String pattern) {
 		return findAllClientByKey(pattern, 0);
 	}
+
 	private Iterator findAllClientByKey(String pattern, int callCount) {
 		ArrayList list = new ArrayList();
 		Pattern p = Pattern.compile(pattern);
@@ -122,16 +128,16 @@ public class OptimisticClientIdentifier extends BasicClientIdentifier  {
 
 		try {
 			Iterator iterator = findAllClient();
-			while(iterator.hasNext()) {
-				foundClientHandler = checkClientKey( 
-					(ClientHandler) iterator.next(), p);
-			
-				if(foundClientHandler!=null) 
+			while (iterator.hasNext()) {
+				foundClientHandler = checkClientKey(
+						(ClientHandler) iterator.next(), p);
+
+				if (foundClientHandler != null)
 					list.add(foundClientHandler);
 				foundClientHandler = null;
 			}//endof while
-		} catch(ConcurrentModificationException e) {
-			if(callCount<MAX_TRY_COUNT) {
+		} catch (ConcurrentModificationException e) {
+			if (callCount < MAX_TRY_COUNT) {
 				//start over again.
 				list = null;
 				return findAllClientByKey(pattern, ++callCount);
@@ -144,7 +150,7 @@ public class OptimisticClientIdentifier extends BasicClientIdentifier  {
 	}
 
 	private synchronized ClientIdentifier getBackupClientIdentifier() {
-		if(backupClientIdentifier==null) {
+		if (backupClientIdentifier == null) {
 			backupClientIdentifier = new SyncClientIdentifier();
 			backupClientIdentifier.setClientHandlerPool(clientHandlerPool);
 		}

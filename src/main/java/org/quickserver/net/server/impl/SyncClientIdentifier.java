@@ -1,10 +1,10 @@
 /*
- * This file is part of the QuickServer library 
+ * This file is part of the QuickServer library
  * Copyright (C) QuickServer.org
  *
  * Use, modification, copying and distribution of this software is subject to
- * the terms and conditions of the GNU Lesser General Public License. 
- * You should have received a copy of the GNU LGP License along with this 
+ * the terms and conditions of the GNU Lesser General Public License.
+ * You should have received a copy of the GNU LGP License along with this
  * library; if not, you can download a copy from <http://www.quickserver.org/>.
  *
  * For questions, suggestions, bug-reports, enhancement-requests etc.
@@ -14,15 +14,16 @@
 
 package org.quickserver.net.server.impl;
 
-import java.io.*;
-import java.util.*;
-import java.util.logging.*;
-import org.quickserver.util.pool.*;
-import org.quickserver.net.server.*;
-import java.util.regex.*;
+import org.quickserver.net.server.ClientHandler;
+
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.logging.Logger;
+import java.util.regex.Pattern;
 
 /**
- * Synchronized Client Identifier implementation. 
+ * Synchronized Client Identifier implementation.
+ *
  * @author Akshathkumar Shetty
  * @since 1.4.5
  */
@@ -32,13 +33,13 @@ public class SyncClientIdentifier extends BasicClientIdentifier {
 	public ClientHandler findFirstClientById(String id) {
 		ClientHandler foundClientHandler = null;
 
-		synchronized(getObjectToSynchronize()) {
-			Iterator iterator = findAllClient();			
-			while(iterator.hasNext()) {
+		synchronized (getObjectToSynchronize()) {
+			Iterator iterator = findAllClient();
+			while (iterator.hasNext()) {
 				foundClientHandler = checkClientId(
-					(ClientHandler) iterator.next(), id);
+						(ClientHandler) iterator.next(), id);
 
-				if(foundClientHandler!=null) break;
+				if (foundClientHandler != null) break;
 			}//endof while
 		}
 		return foundClientHandler;
@@ -48,15 +49,15 @@ public class SyncClientIdentifier extends BasicClientIdentifier {
 		ArrayList list = new ArrayList();
 		Pattern p = Pattern.compile(pattern);
 		ClientHandler foundClientHandler = null;
-		
-		synchronized(getObjectToSynchronize()) {
-			Iterator iterator = findAllClient();
-			
-			while(iterator.hasNext()) {
-				foundClientHandler = checkClientId(
-					(ClientHandler) iterator.next(), p);
 
-				if(foundClientHandler!=null) 
+		synchronized (getObjectToSynchronize()) {
+			Iterator iterator = findAllClient();
+
+			while (iterator.hasNext()) {
+				foundClientHandler = checkClientId(
+						(ClientHandler) iterator.next(), p);
+
+				if (foundClientHandler != null)
 					list.add(foundClientHandler);
 			}//endof while
 		}
@@ -66,13 +67,13 @@ public class SyncClientIdentifier extends BasicClientIdentifier {
 	public ClientHandler findClientByKey(String key) {
 		ClientHandler foundClientHandler = null;
 
-		synchronized(getObjectToSynchronize()) {
+		synchronized (getObjectToSynchronize()) {
 			Iterator iterator = findAllClient();
-			while(iterator.hasNext()) {
-				foundClientHandler = checkClientKey( 
-					(ClientHandler) iterator.next(), key);
+			while (iterator.hasNext()) {
+				foundClientHandler = checkClientKey(
+						(ClientHandler) iterator.next(), key);
 
-				if(foundClientHandler!=null) break;
+				if (foundClientHandler != null) break;
 			}//endof while
 		}
 		return foundClientHandler;
@@ -83,13 +84,13 @@ public class SyncClientIdentifier extends BasicClientIdentifier {
 		Pattern p = Pattern.compile(pattern);
 		ClientHandler foundClientHandler = null;
 
-		synchronized(getObjectToSynchronize()) {
+		synchronized (getObjectToSynchronize()) {
 			Iterator iterator = findAllClient();
-			while(iterator.hasNext()) {
-				foundClientHandler = checkClientKey( 
-					(ClientHandler) iterator.next(), pattern);
-			
-				if(foundClientHandler!=null) 
+			while (iterator.hasNext()) {
+				foundClientHandler = checkClientKey(
+						(ClientHandler) iterator.next(), pattern);
+
+				if (foundClientHandler != null)
 					list.add(foundClientHandler);
 				foundClientHandler = null;
 			}//endof while

@@ -1,10 +1,10 @@
 /*
- * This file is part of the QuickServer library 
+ * This file is part of the QuickServer library
  * Copyright (C) 2003-2005 QuickServer.org
  *
  * Use, modification, copying and distribution of this software is subject to
- * the terms and conditions of the GNU Lesser General Public License. 
- * You should have received a copy of the GNU LGP License along with this 
+ * the terms and conditions of the GNU Lesser General Public License.
+ * You should have received a copy of the GNU LGP License along with this
  * library; if not, you can download a copy from <http://www.quickserver.org/>.
  *
  * For questions, suggestions, bug-reports, enhancement-requests etc.
@@ -14,17 +14,19 @@
 
 package chatserver;
 
-import org.quickserver.net.server.*;
-import java.io.*;
-import java.util.*;
-import org.quickserver.net.*;
+import org.quickserver.net.AppException;
+import org.quickserver.net.server.AuthStatus;
+import org.quickserver.net.server.ClientHandler;
+import org.quickserver.net.server.QuickAuthenticationHandler;
+
+import java.io.IOException;
+import java.util.Arrays;
 
 /**
- *
- * @author  Akshathkumar Shetty
+ * @author Akshathkumar Shetty
  */
 public class ChatAuthenticator extends QuickAuthenticationHandler {
-	public AuthStatus askAuthentication(ClientHandler handler) 
+	public AuthStatus askAuthentication(ClientHandler handler)
 			throws IOException, AppException {
 		ChatData data = (ChatData) handler.getClientData();
 		data.setLastAsked("U");
@@ -32,36 +34,36 @@ public class ChatAuthenticator extends QuickAuthenticationHandler {
 		return null;
 	}
 
-	public AuthStatus handleAuthentication(ClientHandler handler, String command) 
+	public AuthStatus handleAuthentication(ClientHandler handler, String command)
 			throws IOException, AppException {
-		ChatData data = (ChatData)handler.getClientData();
+		ChatData data = (ChatData) handler.getClientData();
 
-		if(data.getLastAsked().equals("U")) {
+		if (data.getLastAsked().equals("U")) {
 			data.setUsername(command);
 			data.setLastAsked("P");
 			handler.sendClientMsg("{system.data} Password");
 			return null;
 		}
-		
-		if(data.getLastAsked().equals("P")) {
+
+		if (data.getLastAsked().equals("P")) {
 			data.setPassword(command.getBytes());
 			data.setLastAsked("R");
 			handler.sendClientMsg("{system.data} Room");
 			return null;
 		}
-		
-		if(data.getLastAsked().equals("R")) {
-			if(data.registerUsername(data.getUsername())==false) {
+
+		if (data.getLastAsked().equals("R")) {
+			if (data.registerUsername(data.getUsername()) == false) {
 				handler.sendClientMsg("{system.error} AuthFailed. Username taken!");
 				data.setUsername(null);
 				return AuthStatus.FAILURE;
 			}
 
-			if(validate(handler, data.getUsername(), data.getPassword())) {
+			if (validate(handler, data.getUsername(), data.getPassword())) {
 				data.setRoom(command);
 				handler.sendClientMsg("{system.ok} Auth Ok");
-				handler.sendClientMsg("{system.msg} Current Chat Room: "+data.getRoom());
-				data.setPassword(null);				
+				handler.sendClientMsg("{system.msg} Current Chat Room: " + data.getRoom());
+				data.setPassword(null);
 
 				ChatMessaging.sendInfoMessage2Room(handler, data.getRoom(), "LoggedIn");
 				ChatMessaging.printHelp(handler, null);
@@ -81,9 +83,9 @@ public class ChatAuthenticator extends QuickAuthenticationHandler {
 	/**
 	 * This function is used to validate username and password.
 	 * May be overridden to change username and/or password.
-	 */ 
+	 */
 	protected static boolean validate(ClientHandler handler, String username, byte[] password) {
-		return Arrays.equals(password,username.getBytes());
+		return Arrays.equals(password, username.getBytes());
 	}
 	
 	/*

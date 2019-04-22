@@ -1,10 +1,10 @@
 /*
- * This file is part of the QuickServer library 
+ * This file is part of the QuickServer library
  * Copyright (C) QuickServer.org
  *
  * Use, modification, copying and distribution of this software is subject to
- * the terms and conditions of the GNU Lesser General Public License. 
- * You should have received a copy of the GNU LGP License along with this 
+ * the terms and conditions of the GNU Lesser General Public License.
+ * You should have received a copy of the GNU LGP License along with this
  * library; if not, you can download a copy from <http://www.quickserver.org/>.
  *
  * For questions, suggestions, bug-reports, enhancement-requests etc.
@@ -14,16 +14,19 @@
 
 package echoserver;
 
-import org.quickserver.net.server.*;
-import java.io.*;
-import java.util.*;
 import org.quickserver.net.AppException;
+import org.quickserver.net.server.AuthStatus;
+import org.quickserver.net.server.ClientHandler;
+import org.quickserver.net.server.QuickAuthenticationHandler;
+
+import java.io.IOException;
+import java.util.Arrays;
 
 /**
  * Needs ClientData
  */
 public class EchoAuthenticatorHandler extends QuickAuthenticationHandler {
-	public AuthStatus askAuthentication(ClientHandler handler) 
+	public AuthStatus askAuthentication(ClientHandler handler)
 			throws IOException, AppException {
 		Data data = (Data) handler.getClientData();
 		data.setLastAsked("U");
@@ -31,18 +34,18 @@ public class EchoAuthenticatorHandler extends QuickAuthenticationHandler {
 		return null;//no AuthStatus yet
 	}
 
-	public AuthStatus handleAuthentication(ClientHandler handler, String command) 
+	public AuthStatus handleAuthentication(ClientHandler handler, String command)
 			throws IOException, AppException {
-		Data data = (Data)handler.getClientData();
+		Data data = (Data) handler.getClientData();
 
-		if(data.getLastAsked().equals("U")) {
+		if (data.getLastAsked().equals("U")) {
 			data.setUsername(command);
 			data.setLastAsked("P");
 			handler.sendClientMsg("Password :");
-		} else if(data.getLastAsked().equals("P")) {
+		} else if (data.getLastAsked().equals("P")) {
 			data.setPassword(command.getBytes());
-			
-			if(validate(handler, data.getUsername(), data.getPassword())) {
+
+			if (validate(handler, data.getUsername(), data.getPassword())) {
 				handler.sendClientMsg("Auth OK");
 				data.setPassword(null);
 				return AuthStatus.SUCCESS;
@@ -61,8 +64,8 @@ public class EchoAuthenticatorHandler extends QuickAuthenticationHandler {
 	/**
 	 * This function is used to validate username and password.
 	 * May be overridden to change username and/or password.
-	 */ 
+	 */
 	protected static boolean validate(ClientHandler handler, String username, byte[] password) {
-		return Arrays.equals(password,username.getBytes());
+		return Arrays.equals(password, username.getBytes());
 	}
 }

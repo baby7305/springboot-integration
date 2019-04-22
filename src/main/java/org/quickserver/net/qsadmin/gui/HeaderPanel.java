@@ -1,10 +1,10 @@
 /*
- * This file is part of the QuickServer library 
+ * This file is part of the QuickServer library
  * Copyright (C) QuickServer.org
  *
  * Use, modification, copying and distribution of this software is subject to
- * the terms and conditions of the GNU Lesser General Public License. 
- * You should have received a copy of the GNU LGP License along with this 
+ * the terms and conditions of the GNU Lesser General Public License.
+ * You should have received a copy of the GNU LGP License along with this
  * library; if not, you can download a copy from <http://www.quickserver.org/>.
  *
  * For questions, suggestions, bug-reports, enhancement-requests etc.
@@ -14,30 +14,26 @@
 
 package org.quickserver.net.qsadmin.gui;
 
-import java.awt.*;
-import java.awt.event.*;
 import javax.swing.*;
-import javax.swing.event.*;
-import javax.swing.border.*;
-import java.io.IOException;
-
-import org.quickserver.util.TextFile;
-import org.quickserver.swing.JFrameUtilities;
-import java.util.logging.*;
+import java.awt.*;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.util.logging.Logger;
 
 /**
- * Control Panel - Header for 
+ * Control Panel - Header for
  * QuickServer Admin GUI - QSAdminGUI
+ *
  * @author Akshathkumar Shetty
  */
-public class HeaderPanel extends JPanel /*JFrame*/{
-	private static Logger logger = 
+public class HeaderPanel extends JPanel /*JFrame*/ {
+	private static Logger logger =
 			Logger.getLogger(HeaderPanel.class.getName());
 	private ClassLoader classLoader = getClass().getClassLoader();
 	public ImageIcon logo = new ImageIcon(
-		classLoader.getResource("icons/logo.gif"));
+			classLoader.getResource("icons/logo.gif"));
 	public ImageIcon logoAbout = new ImageIcon(
-		classLoader.getResource("icons/logo.png"));
+			classLoader.getResource("icons/logo.png"));
 
 	private JLabel logoLabel;
 	private JPanel leftPanel;
@@ -63,17 +59,17 @@ public class HeaderPanel extends JPanel /*JFrame*/{
 
 		gbc = new GridBagConstraints();
 		logoLabel = new JLabel(logoAbout, JLabel.CENTER);
-		productName = new JLabel("<html><font "+
-			"style=\"font-size:20pt;color:#535353\">"+
-			" <b>QSAdmin GUI</b></font>",JLabel.LEFT);
-		status = new JLabel(statusTxt1+statusMsg+statusTxt2);
-		login = new JButton("<html><font style=\"font-size:10pt;color:#535353\">"+
-			"<b>Login</b>"+"</font>");
+		productName = new JLabel("<html><font " +
+				"style=\"font-size:20pt;color:#535353\">" +
+				" <b>QSAdmin GUI</b></font>", JLabel.LEFT);
+		status = new JLabel(statusTxt1 + statusMsg + statusTxt2);
+		login = new JButton("<html><font style=\"font-size:10pt;color:#535353\">" +
+				"<b>Login</b>" + "</font>");
 		login.setMnemonic('L');
-		
+
 		Container cp = this;
 
-		login.addActionListener( new ActionListener() {
+		login.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
 				handleLoginLogout();
 			}
@@ -82,7 +78,7 @@ public class HeaderPanel extends JPanel /*JFrame*/{
 		//--- Left Panel
 		leftPanel = new JPanel();
 		leftPanel.setLayout(new GridBagLayout());
-		gbc.insets = new Insets( 2, 2, 2, 2 );
+		gbc.insets = new Insets(2, 2, 2, 2);
 		gbc.weighty = 0.0;
 		gbc.weightx = 0.0;
 		gbc.gridx = 0;
@@ -103,12 +99,10 @@ public class HeaderPanel extends JPanel /*JFrame*/{
 		leftPanel.add(status, gbc);
 
 
-	
-		
 		//--- Right Panel
 		rightPanel = new JPanel();
 		rightPanel.setLayout(new GridBagLayout());
-		gbc.insets = new Insets( 0, 0, 0, 0 );
+		gbc.insets = new Insets(0, 0, 0, 0);
 		gbc.weighty = 0.0;
 		gbc.weightx = 0.0;
 		gbc.gridx = 0;
@@ -125,19 +119,19 @@ public class HeaderPanel extends JPanel /*JFrame*/{
 		gbc.weighty = 0.8;
 		gbc.gridheight = 1;
 		gbc.gridwidth = 1;
-		gbc.insets = new Insets( 1, 1, 1, 1 );
+		gbc.insets = new Insets(1, 1, 1, 1);
 		gbc.anchor = GridBagConstraints.CENTER;
 		gbc.fill = GridBagConstraints.BOTH;
 		rightPanel.add(login, gbc);
 
-		cp.setLayout(new BorderLayout(0,10));
-		cp.add(rightPanel,BorderLayout.EAST);
-		cp.add(leftPanel,BorderLayout.CENTER);
+		cp.setLayout(new BorderLayout(0, 10));
+		cp.add(rightPanel, BorderLayout.EAST);
+		cp.add(leftPanel, BorderLayout.CENTER);
 	}
 
 	public void setStatus(String msg) {
 		statusMsg = msg;
-		status.setText(statusTxt1+statusMsg+statusTxt2);
+		status.setText(statusTxt1 + statusMsg + statusTxt2);
 	}
 
 	public String getStatus() {
@@ -145,36 +139,37 @@ public class HeaderPanel extends JPanel /*JFrame*/{
 	}
 
 	public void setLoginText() {
-		login.setText("<html><font style=\"font-size:10pt;color:#535353\">"+
-			"<b>Login</b>"+"</font>");
+		login.setText("<html><font style=\"font-size:10pt;color:#535353\">" +
+				"<b>Login</b>" + "</font>");
 	}
+
 	public void setLogoutText() {
-		login.setText("<html><font style=\"font-size:10pt;color:#535353\">"+
-			"<b>Logout</b>"+"</font>");
+		login.setText("<html><font style=\"font-size:10pt;color:#535353\">" +
+				"<b>Logout</b>" + "</font>");
 	}
 
 	public void handleLoginLogout() {
-		if(qsadminMain.isConnected()==false) {
-			if(loginDialog==null) {
+		if (qsadminMain.isConnected() == false) {
+			if (loginDialog == null) {
 				loginDialog = new LoginDialog(parentFrame);
 			}
 			loginDialog.show();
-			if(loginDialog.isOk()==true) {
+			if (loginDialog.isOk() == true) {
 				Thread performer = new Thread(new Runnable() {
 					public void run() {
 						String r[] = loginDialog.getValues();
 						try {
-							boolean flag = qsadminMain.doLogin(r[0], 
-								Integer.parseInt(r[1]), r[2], r[3]);
-							if(flag==true) {
+							boolean flag = qsadminMain.doLogin(r[0],
+									Integer.parseInt(r[1]), r[2], r[3]);
+							if (flag == true) {
 								setLogoutText();
 							} else {
 								setLoginText();
 								//recall the login dialog
 								handleLoginLogout();
 							}
-						} catch(Exception ex) {
-							logger.warning("Error logging in : "+ex);
+						} catch (Exception ex) {
+							logger.warning("Error logging in : " + ex);
 							setLoginText();
 						}
 					}
@@ -187,8 +182,8 @@ public class HeaderPanel extends JPanel /*JFrame*/{
 					try {
 						qsadminMain.doLogout();
 						setLoginText();
-					} catch(Exception ex) {
-						logger.warning("Error logging in : "+ex);
+					} catch (Exception ex) {
+						logger.warning("Error logging in : " + ex);
 					}
 				}
 			}, "QsAdminGUI-LogoutThread");

@@ -1,10 +1,10 @@
 /*
- * This file is part of the QuickServer library 
+ * This file is part of the QuickServer library
  * Copyright (C) 2003-2005 QuickServer.org
  *
  * Use, modification, copying and distribution of this software is subject to
- * the terms and conditions of the GNU Lesser General Public License. 
- * You should have received a copy of the GNU LGP License along with this 
+ * the terms and conditions of the GNU Lesser General Public License.
+ * You should have received a copy of the GNU LGP License along with this
  * library; if not, you can download a copy from <http://www.quickserver.org/>.
  *
  * For questions, suggestions, bug-reports, enhancement-requests etc.
@@ -14,35 +14,38 @@
 
 package filesrv;
 
-import org.quickserver.net.*;
+import org.apache.commons.pool.BasePoolableObjectFactory;
+import org.apache.commons.pool.PoolableObjectFactory;
 import org.quickserver.net.server.*;
 import org.quickserver.util.MyString;
-
 import org.quickserver.util.pool.PoolableObject;
-import org.apache.commons.pool.BasePoolableObjectFactory; 
-import org.apache.commons.pool.PoolableObjectFactory; 
 
-import java.io.*;
-import java.net.*;
-import java.util.*;
-import java.util.logging.*;
-import java.nio.*;
-import java.nio.channels.*;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.net.UnknownHostException;
+import java.nio.ByteBuffer;
+import java.nio.channels.FileChannel;
+import java.util.HashMap;
+import java.util.logging.Logger;
 
 /**
  * FileServer Example
+ *
  * @author Akshathkumar Shetty
  */
 public class Data implements ClientData, PoolableObject {
 	public static String serverIP = null;
-	private static Logger logger =  Logger.getLogger(Data.class.getName());
+	private static Logger logger = Logger.getLogger(Data.class.getName());
+
 	static {
 		try {
 			serverIP = java.net.InetAddress.getLocalHost().getHostName();
-		} catch(UnknownHostException e)	{
+		} catch (UnknownHostException e) {
 			serverIP = "UnknownHost";
 		}
 	}
+
 	private static String userRootHome = "dist";
 
 	public static void setUserRootHome(String name) {
@@ -65,9 +68,9 @@ public class Data implements ClientData, PoolableObject {
 	private String nonBlockingWriteDesc = null;
 
 	public boolean isHeaderReady() {
-		return httpHeader!=null;
+		return httpHeader != null;
 	}
-	
+
 	public void initHeader(String data) {
 		httpHeader = new HashMap();
 		int i = data.lastIndexOf(" HTTP/");
@@ -75,41 +78,41 @@ public class Data implements ClientData, PoolableObject {
 	}
 
 	public boolean addHeader(String data) {
-		if(data.startsWith("GET /")) {
+		if (data.startsWith("GET /")) {
 			initHeader(data);
 			return false;
 		}
 
-		if(data.length()==0) return true;
+		if (data.length() == 0) return true;
 		int i = data.indexOf(": ");
-		if(i==-1) {
-			logger.warning("Got unknown header: "+data);
+		if (i == -1) {
+			logger.warning("Got unknown header: " + data);
 			return false;
 		}
 
-		httpHeader.put(data.substring(0, i).toUpperCase(), 
-			data.substring(i+2));
+		httpHeader.put(data.substring(0, i).toUpperCase(),
+				data.substring(i + 2));
 		return false;
 	}
 
 	public File getFile() throws BadRequestException {
 		String reqDir = (String) httpHeader.get("FILE");
-		if(reqDir==null) 
+		if (reqDir == null)
 			throw new BadRequestException("No File Requested!");
-		if(reqDir.length()==0) reqDir = File.separator;
-		return new File(user_root+reqDir);
+		if (reqDir.length() == 0) reqDir = File.separator;
+		return new File(user_root + reqDir);
 	}
 
 	public boolean isDirList() throws BadRequestException {
 		File file = getFile();
-		if(file.canRead()==false) {
-			logger.finest("File : "+file.getAbsolutePath());
-			throw new BadRequestException("File Not Found: "+(String)httpHeader.get("FILE"));
+		if (file.canRead() == false) {
+			logger.finest("File : " + file.getAbsolutePath());
+			throw new BadRequestException("File Not Found: " + (String) httpHeader.get("FILE"));
 		}
-		if(file.isDirectory()) {
+		if (file.isDirectory()) {
 			String reqDir = (String) httpHeader.get("FILE");
-			if(reqDir.charAt(reqDir.length()-1)!='/') {
-				httpHeader.put("FILE", reqDir+"/");
+			if (reqDir.charAt(reqDir.length() - 1) != '/') {
+				httpHeader.put("FILE", reqDir + "/");
 			}
 		}
 		return file.isDirectory();
@@ -118,27 +121,27 @@ public class Data implements ClientData, PoolableObject {
 	public String getDirList() throws BadRequestException {
 		File file = getFile();
 		File list[] = file.listFiles();
-		String loc = (String)httpHeader.get("FILE");
+		String loc = (String) httpHeader.get("FILE");
 
 		StringBuffer content = new StringBuffer();
-		content.append("<html>\r\n<head>\r\n<title>"+serverIP+" - "+loc+"</title>\r\n</head>\r\n<body>\r\n");
-		content.append("<H3>Filesrv Server - File List for "+serverIP+" - "+loc+"</H3>\r\n<hr/>\r\n");
+		content.append("<html>\r\n<head>\r\n<title>" + serverIP + " - " + loc + "</title>\r\n</head>\r\n<body>\r\n");
+		content.append("<H3>Filesrv Server - File List for " + serverIP + " - " + loc + "</H3>\r\n<hr/>\r\n");
 		content.append("<blockquote>\r\n<table width=\"80%\">");
-		
-		if(loc.equals("/")==false) {
+
+		if (loc.equals("/") == false) {
 			content.append("\r\n<tr>\r\n<td colspan=\"5\">");
 			String parent = file.getParent();
 			parent = parent.replace('\\', '/');
 			//parent = parent.replaceAll("\\("+user_root+"\\)", "");
 			parent = MyString.replaceAll(parent, user_root, "");
-			if(parent.equals("")) parent = "/";
-			content.append("[<a href=\""+parent+"\">To Parent Directory</a>]"); //to fix
+			if (parent.equals("")) parent = "/";
+			content.append("[<a href=\"" + parent + "\">To Parent Directory</a>]"); //to fix
 			content.append("\r\n</td>\r\n</tr>");
 		}
 
-		for(int i=0;i<list.length;i++) {
+		for (int i = 0; i < list.length; i++) {
 			content.append("\r\n<tr>");
-			
+
 			content.append("\r\n<td align=\"right\">");
 			content.append(new java.util.Date(list[i].lastModified()));
 			content.append("</td>");
@@ -146,17 +149,17 @@ public class Data implements ClientData, PoolableObject {
 			content.append("\r\n<td>&nbsp;&nbsp;</td>");
 
 			content.append("\r\n<td align=\"right\">");
-			if(list[i].isDirectory()) {
+			if (list[i].isDirectory()) {
 				content.append(" &lt;dir&gt;");
 			} else {
-				content.append(" "+list[i].length());
+				content.append(" " + list[i].length());
 			}
 			content.append("</td>");
 
 			content.append("\r\n<td>&nbsp;&nbsp;</td>");
 
 			content.append("\r\n<td><a href=\"");
-			content.append(loc+list[i].getName());//to fix
+			content.append(loc + list[i].getName());//to fix
 			content.append("\">");
 			content.append(list[i].getName());
 			content.append("</a></td>");
@@ -173,51 +176,51 @@ public class Data implements ClientData, PoolableObject {
 
 		StringBuffer sb = new StringBuffer();
 
-		if(range==null || range.startsWith("bytes=")==false) {
+		if (range == null || range.startsWith("bytes=") == false) {
 			sb.append("HTTP/1.1 200 OK\r\n");
-			sb.append("Content-Length: "+fileLength).append("\r\n");
+			sb.append("Content-Length: " + fileLength).append("\r\n");
 			startRange = 0;
-			endRange = fileLength-1;
+			endRange = fileLength - 1;
 		} else {
 			try {
 				range = range.substring(6); //skip bytes=
 				int i = range.indexOf("-");
-				if(i==-1) i = range.length();
+				if (i == -1) i = range.length();
 				startRange = Integer.parseInt(range.substring(0, i));
 				i++;
-				if(i<range.length()) {
+				if (i < range.length()) {
 					endRange = Integer.parseInt(range.substring(i));
 				} else {
-					endRange = fileLength-1;
+					endRange = fileLength - 1;
 				}
-			} catch(Exception e) {
-				logger.finest("IGNORE Error: "+e);
+			} catch (Exception e) {
+				logger.finest("IGNORE Error: " + e);
 			}
 			sb.append("HTTP/1.1 206 Partial content\r\n");
-			sb.append("Content-Range: bytes "+startRange+"-"+endRange+
-				"/"+fileLength+"\r\n");
+			sb.append("Content-Range: bytes " + startRange + "-" + endRange +
+					"/" + fileLength + "\r\n");
 
 		}
 		sb.append("Server: ").append(handler.getServer().getName()).append("\r\n");
 		sb.append("Content-Type: application/octet-stream").append("\r\n");
 		sb.append("\r\n");
-		
+
 		return sb.toString();
 	}
 
-	public void sendFileNonBlocking(ClientHandler handler) 
+	public void sendFileNonBlocking(ClientHandler handler)
 			throws IOException, BadRequestException {
 		fileLength = getFile().length();
 		String header = makeFileResponseHeader(handler);
-		logger.fine("Will Send: \n"+header);
+		logger.fine("Will Send: \n" + header);
 
-		makeNonBlockingWrite(handler, header.getBytes(), true, 
-			"Sending HTTP header for file.", false);
+		makeNonBlockingWrite(handler, header.getBytes(), true,
+				"Sending HTTP header for file.", false);
 	}
 
-	public void makeNonBlockingWrite(ClientHandler handler, byte data[], 
-			boolean sendFileFlag, String desc, boolean closeConWhenDone) throws IOException {
-		if(wrapedByteBuffer!=null) {
+	public void makeNonBlockingWrite(ClientHandler handler, byte data[],
+									 boolean sendFileFlag, String desc, boolean closeConWhenDone) throws IOException {
+		if (wrapedByteBuffer != null) {
 			//this client must have sent another req. with out waiting for res.. let close him.. 
 			throw new IOException("The old data was still not fully written sorry!");
 		}
@@ -228,52 +231,52 @@ public class Data implements ClientData, PoolableObject {
 		handler.registerForWrite();
 	}
 
-	public void sendFileBlocking(ClientHandler handler) 
+	public void sendFileBlocking(ClientHandler handler)
 			throws IOException, BadRequestException {
 		File file = getFile();
-		
+
 		fileLength = file.length();
 		String header = makeFileResponseHeader(handler);
-		
+
 		FileInputStream in = null;
-		byte buffer[] = new byte[1024*1024];
+		byte buffer[] = new byte[1024 * 1024];
 		try {
 			in = new FileInputStream(file);
-			if(startRange>0) {
-				logger.finest("Will skip: "+startRange);
+			if (startRange > 0) {
+				logger.finest("Will skip: " + startRange);
 				in.skip(startRange);
 			}
 			int i = 0;
-			
+
 			i = in.read(buffer);
 			logger.finest("Sending HTTP header for file.");
 			handler.sendClientBytes(header);
 
 			handler.setDataMode(DataMode.BINARY, DataType.OUT);
-			logger.finest("Sending file data: "+file);
-			long remain = fileLength-startRange;
-			logger.finest("Remain: "+remain+", startRange: "+startRange+", i: "+i);
+			logger.finest("Sending file data: " + file);
+			long remain = fileLength - startRange;
+			logger.finest("Remain: " + remain + ", startRange: " + startRange + ", i: " + i);
 
-			while(i!=-1 && remain!=0) {				
-				if(i>remain) i = (int) remain;				
+			while (i != -1 && remain != 0) {
+				if (i > remain) i = (int) remain;
 
-				handler.sendClientBinary(buffer,0, i);
-				startRange+=i;
+				handler.sendClientBinary(buffer, 0, i);
+				startRange += i;
 
-				remain = fileLength-startRange;
+				remain = fileLength - startRange;
 				i = in.read(buffer);
-				logger.finest("Remain: "+remain+", startRange: "+startRange+", i: "+i);
+				logger.finest("Remain: " + remain + ", startRange: " + startRange + ", i: " + i);
 				Thread.currentThread().yield();
 			}
 			logger.fine("Sent the file!");
-		} catch(Exception er) {
-			logger.info("Error sending file: "+er);
+		} catch (Exception er) {
+			logger.info("Error sending file: " + er);
 		} finally {
-			if(in!=null) in.close();
+			if (in != null) in.close();
 			handler.setDataMode(DataMode.BYTE, DataType.OUT);
 		}
-		
-		if(false) {
+
+		if (false) {
 			handler.closeConnection();
 		} else {
 			//so that we can take more req.
@@ -282,81 +285,81 @@ public class Data implements ClientData, PoolableObject {
 	}
 
 	public void writeData(ClientHandler handler) throws Exception {
-		if(wrapedByteBuffer!=null && wrapedByteBuffer.remaining()!=0) {
+		if (wrapedByteBuffer != null && wrapedByteBuffer.remaining() != 0) {
 			logger.finest(nonBlockingWriteDesc);
 			int written = handler.getSocketChannel().write(wrapedByteBuffer);
-			if(written>0) {
+			if (written > 0) {
 				handler.updateLastCommunicationTime();
 			}
-			logger.finest("Written "+written+" Bytes");
-			if(wrapedByteBuffer.remaining()!=0) {
+			logger.finest("Written " + written + " Bytes");
+			if (wrapedByteBuffer.remaining() != 0) {
 				handler.registerForWrite();
 				return;
 			}
 			wroteFileHttpHeader = true;
-			if(sendFile==false) {
+			if (sendFile == false) {
 				wrapedByteBuffer = null;
-				if(closeConWhenDone) {
+				if (closeConWhenDone) {
 					handler.closeConnection();
 				}
 				return;
 			}
 		}
-		
-		if(sendFile==true) {
-			if(fileChannel==null) {
+
+		if (sendFile == true) {
+			if (fileChannel == null) {
 				File file = getFile();
-				logger.finest("Sending file data: "+file);
+				logger.finest("Sending file data: " + file);
 				FileInputStream fin = new FileInputStream(file);
 				fileChannel = fin.getChannel();
 				fileChannel.position(startRange);
 			}
-			
-			if(pooledByteBuffer==null) {
-				pooledByteBuffer = (ByteBuffer) 
-					handler.getServer().getByteBufferPool().borrowObject();
+
+			if (pooledByteBuffer == null) {
+				pooledByteBuffer = (ByteBuffer)
+						handler.getServer().getByteBufferPool().borrowObject();
 			}
 
-			if(pooledByteBuffer.hasRemaining()) {
+			if (pooledByteBuffer.hasRemaining()) {
 				int ret = -1;
-				long remain = fileLength-startRange;
-				logger.finest("Remain: "+remain);
+				long remain = fileLength - startRange;
+				logger.finest("Remain: " + remain);
 
-				if(pooledByteBuffer.remaining()>remain) {
+				if (pooledByteBuffer.remaining() > remain) {
 					pooledByteBuffer.limit(
-						(int) (pooledByteBuffer.position()+remain) );
+							(int) (pooledByteBuffer.position() + remain));
 				}
 
 				ret = fileChannel.read(pooledByteBuffer);
 
-				logger.finest("Read "+ret+" Bytes from file");
-				if(ret<0 || remain==0) {//EOF
+				logger.finest("Read " + ret + " Bytes from file");
+				if (ret < 0 || remain == 0) {//EOF
 					fileChannel.close();
 					//fileChannel = null;
 				} else {
-					startRange+=ret;
-				}				
+					startRange += ret;
+				}
 			}
 			pooledByteBuffer.flip();
-			
-			if(pooledByteBuffer.hasRemaining()) {
+
+			if (pooledByteBuffer.hasRemaining()) {
 				int written = handler.getSocketChannel().write(pooledByteBuffer);
-				if(written>0) {
+				if (written > 0) {
 					handler.updateLastCommunicationTime();
 				}
-				logger.finest("Written "+written+" Bytes to socket");
+				logger.finest("Written " + written + " Bytes to socket");
 			}
 
-			long remain = fileLength-startRange;
-			if(remain==0 && pooledByteBuffer.hasRemaining()==false) {
+			long remain = fileLength - startRange;
+			if (remain == 0 && pooledByteBuffer.hasRemaining() == false) {
 				fileChannel.close();
 			}
 
-			if(pooledByteBuffer.hasRemaining()==false && fileChannel.isOpen()==false) {
+			if (pooledByteBuffer.hasRemaining() == false && fileChannel.isOpen() == false) {
 				sendFile = false;
 				logger.finest("Sent the file!");
-				
-				if(false) {
+
+				if (false) {
 					handler.closeConnection();
 				} else {
 					//so that we can take more req.
@@ -370,12 +373,12 @@ public class Data implements ClientData, PoolableObject {
 	}
 
 	public void cleanPooledByteBuffer(QuickServer quickserver) {
-		if(pooledByteBuffer!=null) {
+		if (pooledByteBuffer != null) {
 			try {
-				quickserver.getByteBufferPool().returnObject(pooledByteBuffer);	
-			} catch(Exception er) {
-				logger.warning("Could not return ByteBuffer back to pool: "+er);
-			}		
+				quickserver.getByteBufferPool().returnObject(pooledByteBuffer);
+			} catch (Exception er) {
+				logger.warning("Could not return ByteBuffer back to pool: " + er);
+			}
 			pooledByteBuffer = null;
 		}
 	}
@@ -389,16 +392,17 @@ public class Data implements ClientData, PoolableObject {
 		httpHeader = null;
 		user_root = userRootHome;
 		wrapedByteBuffer = null;
-		if(pooledByteBuffer!=null) {
+		if (pooledByteBuffer != null) {
 			pooledByteBuffer.clear();
 		}
 		sendFile = false;
-		if(fileChannel!=null) {
+		if (fileChannel != null) {
 			try {
-				fileChannel.close();	
-			} catch(Exception er) {}			
+				fileChannel.close();
+			} catch (Exception er) {
+			}
 			fileChannel = null;
-		}		
+		}
 		startRange = 0;
 		endRange = -1;
 		fileLength = -1;
@@ -414,21 +418,24 @@ public class Data implements ClientData, PoolableObject {
 	}
 
 	public PoolableObjectFactory getPoolableObjectFactory() {
-		return  new BasePoolableObjectFactory() {
-			public Object makeObject() { 
+		return new BasePoolableObjectFactory() {
+			public Object makeObject() {
 				return new Data();
-			} 
+			}
+
 			public void passivateObject(Object obj) {
-				Data d = (Data)obj;
+				Data d = (Data) obj;
 				d.clean();
-			} 
+			}
+
 			public void destroyObject(Object obj) {
-				if(obj==null) return;
+				if (obj == null) return;
 				passivateObject(obj);
 				obj = null;
 			}
+
 			public boolean validateObject(Object obj) {
-				if(obj==null) 
+				if (obj == null)
 					return false;
 				else
 					return true;

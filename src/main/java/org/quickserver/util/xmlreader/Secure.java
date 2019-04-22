@@ -1,10 +1,10 @@
 /*
- * This file is part of the QuickServer library 
+ * This file is part of the QuickServer library
  * Copyright (C) QuickServer.org
  *
  * Use, modification, copying and distribution of this software is subject to
- * the terms and conditions of the GNU Lesser General Public License. 
- * You should have received a copy of the GNU LGP License along with this 
+ * the terms and conditions of the GNU Lesser General Public License.
+ * You should have received a copy of the GNU LGP License along with this
  * library; if not, you can download a copy from <http://www.quickserver.org/>.
  *
  * For questions, suggestions, bug-reports, enhancement-requests etc.
@@ -14,29 +14,28 @@
 
 package org.quickserver.util.xmlreader;
 
-import java.util.*;
-
 /**
  * This class encapsulate the setting that help in configuring a secure socket
  * based QuickServer.
  * The example xml is <pre>
-	....
-	&lt;secure&gt;
-		&lt;enable&gt;true&lt;/enable&gt;
-		&lt;load&gt;true&lt;/load&gt;
-		&lt;port&gt;&lt;/port&gt;
-		&lt;protocol&gt;TLS&lt;/protocol&gt;
-		&lt;client-auth-enable&gt;false&lt;/client-auth-enable&gt; 
-		&lt;secure-store&gt;
-			....
-		&lt;/secure-store&gt;
-	&lt;/secure&gt;
-	....
- </pre>
+ * ....
+ * &lt;secure&gt;
+ * &lt;enable&gt;true&lt;/enable&gt;
+ * &lt;load&gt;true&lt;/load&gt;
+ * &lt;port&gt;&lt;/port&gt;
+ * &lt;protocol&gt;TLS&lt;/protocol&gt;
+ * &lt;client-auth-enable&gt;false&lt;/client-auth-enable&gt;
+ * &lt;secure-store&gt;
+ * ....
+ * &lt;/secure-store&gt;
+ * &lt;/secure&gt;
+ * ....
+ * </pre>
+ *
+ * @author Akshathkumar Shetty
  * @see TrustStoreInfo
  * @see KeyStoreInfo
  * @see SecureStore
- * @author Akshathkumar Shetty
  * @since 1.4
  */
 public class Secure implements java.io.Serializable {
@@ -53,21 +52,25 @@ public class Secure implements java.io.Serializable {
 	 * XML Tag: &lt;secure&gt;&lt;enable&gt;true&lt;/enable&gt;&lt;/secure&gt;
 	 * Allowed values = <code>true</code> | <code>false</code>
 	 * If enable is set to <code>true</code> load is also set to <code>true</code>.
- 	 * @see #getEnable
+	 *
+	 * @see #getEnable
 	 */
 	public void setEnable(boolean enable) {
 		this.enable = enable;
-		if(enable==true) {
+		if (enable == true) {
 			setLoad(true);
 		}
 	}
+
 	/**
 	 * Returns the Secure enable flag.
+	 *
 	 * @see #setEnable
 	 */
 	public boolean getEnable() {
 		return enable;
 	}
+
 	/**
 	 * Returns the Secure enable flag.
 	 */
@@ -81,18 +84,22 @@ public class Secure implements java.io.Serializable {
 	 * If not set, it will use <code>false</code><br/>
 	 * XML Tag: &lt;Secure&gt;&lt;load&gt;true&lt;/load&gt;&lt;/Secure&gt;
 	 * Allowed values = <code>true</code> | <code>false</code>
- 	 * @see #getLoad
+	 *
+	 * @see #getLoad
 	 */
 	public void setLoad(boolean load) {
 		this.load = load;
 	}
+
 	/**
 	 * Returns the load flag for SSLContext.
+	 *
 	 * @see #setLoad
 	 */
 	public boolean getLoad() {
 		return load;
 	}
+
 	/**
 	 * Returns the load flag for SSLContext.
 	 */
@@ -101,65 +108,75 @@ public class Secure implements java.io.Serializable {
 	}
 
 	/**
-     * Sets the port for the QuickServer to listen on in secure mode.
+	 * Sets the port for the QuickServer to listen on in secure mode.
 	 * If not set, it will run on servers non secure port<br/>
 	 * XML Tag: &lt;port&gt;&lt;/port&gt;
+	 *
 	 * @param port to listen on.
-     * @see #getPort
-     */
+	 * @see #getPort
+	 */
 	public void setPort(int port) {
-		if(port>=0)
+		if (port >= 0)
 			this.port = port;
 	}
+
 	/**
-     * Returns the port for the QuickServer to listen on in secure mode.
-     * @see #setPort
-     */
+	 * Returns the port for the QuickServer to listen on in secure mode.
+	 *
+	 * @see #setPort
+	 */
 	public int getPort() {
 		return port;
 	}
 
 
 	/**
-     * Sets the protocol for the QuickServer to listen on in secure mode.
+	 * Sets the protocol for the QuickServer to listen on in secure mode.
 	 * If not set, it will use <code>TLS</code><br/>
 	 * XML Tag: &lt;protocol&gt;TLS&lt;/protocol&gt;
+	 *
 	 * @param protocol to listen on in secure mode.
-     * @see #getProtocol
-     */
+	 * @see #getProtocol
+	 */
 	public void setProtocol(String protocol) {
-		if(protocol!=null && protocol.trim().length()!=0)
+		if (protocol != null && protocol.trim().length() != 0)
 			this.protocol = protocol;
 	}
+
 	/**
-     * Returns the protocol for the QuickServer to listen on in secure mode.
-     * @see #setProtocol
-     */
+	 * Returns the protocol for the QuickServer to listen on in secure mode.
+	 *
+	 * @see #setProtocol
+	 */
 	public String getProtocol() {
 		return protocol;
 	}
 
 	/**
-     * Sets whether the connections which are accepted must include 
+	 * Sets whether the connections which are accepted must include
 	 * successful client authentication.
 	 * If not set, it will use <code>false</code><br/>
 	 * XML Tag: &lt;client-auth-enable&gt;false&lt;/client-auth-enable&gt;
+	 *
 	 * @param enable client authentication enable flag
-     * @see #getClientAuthEnable
-     */
+	 * @see #getClientAuthEnable
+	 */
 	public void setClientAuthEnable(boolean enable) {
 		this.clientAuthEnable = enable;
 	}
+
 	/**
-     * Returns whether the connections which are accepted must include 
+	 * Returns whether the connections which are accepted must include
 	 * successful client authentication.
-     * @see #setClientAuthEnable
-     */
+	 *
+	 * @see #setClientAuthEnable
+	 */
 	public boolean getClientAuthEnable() {
 		return clientAuthEnable;
 	}
+
 	/**
-	 * Returns whether the connections which are accepted must include 
+	 * Returns whether the connections which are accepted must include
 	 * successful client authentication.
 	 */
 	public boolean isClientAuthEnable() {
@@ -167,19 +184,22 @@ public class Secure implements java.io.Serializable {
 	}
 
 	/**
-     * Sets SecureStore information
+	 * Sets SecureStore information
 	 * XML Tag: &lt;secure-store&gt;&lt;/secure-store&gt;
+	 *
 	 * @param secureStore SecureStore information
-     * @see #getSecureStore
-     */
+	 * @see #getSecureStore
+	 */
 	public void setSecureStore(SecureStore secureStore) {
-		if(secureStore!=null)
+		if (secureStore != null)
 			this.secureStore = secureStore;
 	}
+
 	/**
-     * Returns SecureStore information.
-     * @see #setSecureStore
-     */
+	 * Returns SecureStore information.
+	 *
+	 * @see #setSecureStore
+	 */
 	public SecureStore getSecureStore() {
 		return secureStore;
 	}
@@ -188,20 +208,20 @@ public class Secure implements java.io.Serializable {
 	 * Returns XML config of this class.
 	 */
 	public String toXML(String pad) {
-		if(pad==null) pad="";
+		if (pad == null) pad = "";
 		StringBuilder sb = new StringBuilder();
-		sb.append(pad+"<secure>\n");
-		sb.append(pad+"\t<enable>"+getEnable()+"</enable>\n");
-		sb.append(pad+"\t<load>"+getLoad()+"</load>\n");
-		if(getPort()!=-1)
-			sb.append(pad+"\t<port>"+getPort()+"</port>\n");
-		sb.append(pad+"\t<protocol>"+getProtocol()+"</protocol>\n");
-		sb.append(pad+"\t<client-auth-enable>"+
-			getClientAuthEnable()+"</client-auth-enable>\n");
-		if(getSecureStore()!=null) {
-			sb.append(getSecureStore().toXML(pad+"\t"));
+		sb.append(pad + "<secure>\n");
+		sb.append(pad + "\t<enable>" + getEnable() + "</enable>\n");
+		sb.append(pad + "\t<load>" + getLoad() + "</load>\n");
+		if (getPort() != -1)
+			sb.append(pad + "\t<port>" + getPort() + "</port>\n");
+		sb.append(pad + "\t<protocol>" + getProtocol() + "</protocol>\n");
+		sb.append(pad + "\t<client-auth-enable>" +
+				getClientAuthEnable() + "</client-auth-enable>\n");
+		if (getSecureStore() != null) {
+			sb.append(getSecureStore().toXML(pad + "\t"));
 		}
-		sb.append(pad+"</secure>\n");
+		sb.append(pad + "</secure>\n");
 		return sb.toString();
 	}
 }

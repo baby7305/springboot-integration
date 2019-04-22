@@ -1,10 +1,10 @@
 /*
- * This file is part of the QuickServer library 
+ * This file is part of the QuickServer library
  * Copyright (C) QuickServer.org
  *
  * Use, modification, copying and distribution of this software is subject to
- * the terms and conditions of the GNU Lesser General Public License. 
- * You should have received a copy of the GNU LGP License along with this 
+ * the terms and conditions of the GNU Lesser General Public License.
+ * You should have received a copy of the GNU LGP License along with this
  * library; if not, you can download a copy from <http://www.quickserver.org/>.
  *
  * For questions, suggestions, bug-reports, enhancement-requests etc.
@@ -14,20 +14,25 @@
 
 package org.quickserver.net.server.impl;
 
-import org.quickserver.net.server.*;
-import java.lang.reflect.*;
-import java.net.*;
-import java.io.*;
-import java.util.logging.*;
+import org.quickserver.net.server.ClientCommandHandler;
+import org.quickserver.net.server.ClientEventHandler;
+import org.quickserver.net.server.ClientHandler;
+
+import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.net.SocketTimeoutException;
+import java.util.logging.Logger;
 
 /**
- * Default ClientEventHandler implementation. 
+ * Default ClientEventHandler implementation.
  * <p>This implementation will try to provide a default ClientEventHandler
- * implementation. If a ClientCommandHandler is known to have been set then 
- * this implementation will look for ClientEventHandler methods in that 
+ * implementation. If a ClientCommandHandler is known to have been set then
+ * this implementation will look for ClientEventHandler methods in that
  * implementation and pass the corresponding call to that method.
  * This was done to provide backward compatibility with v1.4.5 and prior version
  * of ClientCommandHandler.</p>
+ *
  * @author Akshathkumar Shetty
  * @since 1.4.6
  */
@@ -45,30 +50,30 @@ public class DefaultClientEventHandler implements ClientEventHandler {
 	 */
 	public void setClientCommandHandler(ClientCommandHandler handler) {
 		this.clientCommandHandler = handler;
-		if(clientCommandHandler!=null)
+		if (clientCommandHandler != null)
 			loadMethods();
 	}
 
 	public void gotConnected(ClientHandler handler)
 			throws SocketTimeoutException, IOException {
-		if(gotConnectedMethod==null)
-			handler.sendSystemMsg("Connection opened: "+handler.getHostAddress());
+		if (gotConnectedMethod == null)
+			handler.sendSystemMsg("Connection opened: " + handler.getHostAddress());
 		else
 			invoke(gotConnectedMethod, handler);
 	}
 
-	public void lostConnection(ClientHandler handler) 
+	public void lostConnection(ClientHandler handler)
 			throws IOException {
-		if(lostConnectionMethod==null)
-			handler.sendSystemMsg("Connection lost: "+handler.getHostAddress());
+		if (lostConnectionMethod == null)
+			handler.sendSystemMsg("Connection lost: " + handler.getHostAddress());
 		else
 			invoke(lostConnectionMethod, handler);
 	}
 
-	public void closingConnection(ClientHandler handler) 
+	public void closingConnection(ClientHandler handler)
 			throws IOException {
-		if(closingConnectionMethod==null)
-			handler.sendSystemMsg("Connection closing: "+handler.getHostAddress());
+		if (closingConnectionMethod == null)
+			handler.sendSystemMsg("Connection closing: " + handler.getHostAddress());
 		else
 			invoke(closingConnectionMethod, handler);
 	}
@@ -76,39 +81,39 @@ public class DefaultClientEventHandler implements ClientEventHandler {
 	private void loadMethods() {
 		Class cls = clientCommandHandler.getClass();
 		try {
-			gotConnectedMethod = cls.getMethod("gotConnected", 
-				new Class[] {ClientHandler.class});
-		} catch(NoSuchMethodException ex) {
-			logger.fine("Error finding gotConnected : "+ex);
+			gotConnectedMethod = cls.getMethod("gotConnected",
+					new Class[]{ClientHandler.class});
+		} catch (NoSuchMethodException ex) {
+			logger.fine("Error finding gotConnected : " + ex);
 		}
 		try {
-			lostConnectionMethod = cls.getMethod("lostConnection", 
-				new Class[] {ClientHandler.class});
-		} catch(NoSuchMethodException ex) {
-			logger.fine("Error finding lostConnection : "+ex);
+			lostConnectionMethod = cls.getMethod("lostConnection",
+					new Class[]{ClientHandler.class});
+		} catch (NoSuchMethodException ex) {
+			logger.fine("Error finding lostConnection : " + ex);
 		}
 		try {
-			closingConnectionMethod = cls.getMethod("closingConnection", 
-				new Class[] {ClientHandler.class});
-		} catch(NoSuchMethodException ex) {
-			logger.fine("Error finding lostConnection : "+ex);
+			closingConnectionMethod = cls.getMethod("closingConnection",
+					new Class[]{ClientHandler.class});
+		} catch (NoSuchMethodException ex) {
+			logger.fine("Error finding lostConnection : " + ex);
 		}
 	}
 
 	private void invoke(Method method, ClientHandler handler) throws SocketTimeoutException, IOException {
 		try {
-			method.invoke(clientCommandHandler, new Object[] {handler});
-		} catch(IllegalAccessException e) {
-			logger.warning("Error invoking "+method+" : "+e);
-		} catch(InvocationTargetException e) {
+			method.invoke(clientCommandHandler, new Object[]{handler});
+		} catch (IllegalAccessException e) {
+			logger.warning("Error invoking " + method + " : " + e);
+		} catch (InvocationTargetException e) {
 			Exception cause = (Exception) e.getCause();
-			if(cause!=null) {
-				if(SocketTimeoutException.class.isInstance(cause))
+			if (cause != null) {
+				if (SocketTimeoutException.class.isInstance(cause))
 					throw (SocketTimeoutException) cause;
-				else if(IOException.class.isInstance(cause))
+				else if (IOException.class.isInstance(cause))
 					throw (IOException) cause;
 			}
-			logger.warning("Error invoking "+method+" : "+e+"\n Cause: "+cause);
+			logger.warning("Error invoking " + method + " : " + e + "\n Cause: " + cause);
 			IOException ioe = new IOException();
 			ioe.initCause(cause);
 			throw ioe;

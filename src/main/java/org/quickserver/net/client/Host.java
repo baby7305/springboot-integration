@@ -1,10 +1,10 @@
 /*
- * This file is part of the QuickServer library 
+ * This file is part of the QuickServer library
  * Copyright (C) QuickServer.org
  *
  * Use, modification, copying and distribution of this software is subject to
- * the terms and conditions of the GNU Lesser General Public License. 
- * You should have received a copy of the GNU LGP License along with this 
+ * the terms and conditions of the GNU Lesser General Public License.
+ * You should have received a copy of the GNU LGP License along with this
  * library; if not, you can download a copy from <http://www.quickserver.org/>.
  *
  * For questions, suggestions, bug-reports, enhancement-requests etc.
@@ -18,8 +18,8 @@ import java.net.UnknownHostException;
 import java.util.Date;
 
 /**
- * @since 1.4.8
  * @author Akshathkumar Shetty
+ * @since 1.4.8
  */
 public class Host {
 	public static final char UNKNOWN = 'U';
@@ -27,22 +27,22 @@ public class Host {
 	public static final char DOWN = 'D';
 	public static final char ERROR = 'E';
 	public static final char MAINTENANCE = 'M';
-	
+
 	private InetAddress inetAddress;
 	private char status = Host.UNKNOWN;
 	private int timeout = 10000;//10sec	
 	private Date lastCheckedOn;
 	private Date nextCheckOn;
 	private String name;
-	
+
 	private Date lastActiveTime;
-	
-	public Host() {		
+
+	public Host() {
 	}
-	
+
 	public String toString() {
 		StringBuilder sb = new StringBuilder();
-		if(getName()!=null)sb.append(getName());
+		if (getName() != null) sb.append(getName());
 		sb.append("[");
 		sb.append("Host:");
 		sb.append(getInetAddress());
@@ -51,11 +51,11 @@ public class Host {
 		sb.append("]");
 		return sb.toString();
 	}
-	
+
 	public Host(String ip) throws UnknownHostException {
 		setInetAddress(ip);
 	}
-	
+
 	public Host(InetAddress inetAddress) {
 		setInetAddress(inetAddress);
 	}
@@ -63,8 +63,8 @@ public class Host {
 	public InetAddress getInetAddress() {
 		return inetAddress;
 	}
-	
-	public void setInetAddress(String ip) throws UnknownHostException  {
+
+	public void setInetAddress(String ip) throws UnknownHostException {
 		this.inetAddress = InetAddress.getByName(ip);
 	}
 
@@ -76,8 +76,8 @@ public class Host {
 		return status;
 	}
 
-	public void setStatus(char status) {		
-		if(status==Host.ACTIVE && this.status != status) {
+	public void setStatus(char status) {
+		if (status == Host.ACTIVE && this.status != status) {
 			lastActiveTime = new Date();
 		}
 		this.status = status;
@@ -104,7 +104,6 @@ public class Host {
 	}
 
 	/**
-	 * 
 	 * @param timeout in mili seconds
 	 */
 	public void setTimeout(int timeout) {
@@ -132,20 +131,21 @@ public class Host {
 	public void setLastActiveTime(Date lastActiveTime) {
 		this.lastActiveTime = lastActiveTime;
 	}
-	
+
 	private static final int SECOND = 1000;
 	private static final int MINUTE = 60 * SECOND;
 	private static final int HOUR = 60 * MINUTE;
 	private static final int DAY = 24 * HOUR;
+
 	public String getUptime() {
-		if(getStatus()!=Host.ACTIVE) {
+		if (getStatus() != Host.ACTIVE) {
 			return "NA";
 		}
-		
+
 		Date lst = getLastActiveTime();
 		StringBuilder sb = new StringBuilder();
-		
-		if(lst==null) {
+
+		if (lst == null) {
 			sb.append("N/A");
 		} else {
 			long ms = System.currentTimeMillis() - lst.getTime();
@@ -167,7 +167,7 @@ public class Host {
 			}
 			//sb.append(ms).append("ms");
 		}
-		
+
 		return sb.toString();
 	}
 }

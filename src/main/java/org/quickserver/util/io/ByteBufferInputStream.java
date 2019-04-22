@@ -1,10 +1,10 @@
 /*
- * This file is part of the QuickServer library 
+ * This file is part of the QuickServer library
  * Copyright (C) QuickServer.org
  *
  * Use, modification, copying and distribution of this software is subject to
- * the terms and conditions of the GNU Lesser General Public License. 
- * You should have received a copy of the GNU LGP License along with this 
+ * the terms and conditions of the GNU Lesser General Public License.
+ * You should have received a copy of the GNU LGP License along with this
  * library; if not, you can download a copy from <http://www.quickserver.org/>.
  *
  * For questions, suggestions, bug-reports, enhancement-requests etc.
@@ -14,31 +14,39 @@
 
 package org.quickserver.util.io;
 
-import java.io.*;
-import java.nio.*;
-import java.nio.charset.*;
-import java.util.*;
 import org.quickserver.net.server.ClientHandler;
-import java.util.logging.*;
-import org.quickserver.util.*;
+import org.quickserver.util.Assertion;
+
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.ByteBuffer;
+import java.nio.CharBuffer;
+import java.nio.charset.Charset;
+import java.nio.charset.CharsetDecoder;
+import java.nio.charset.CharsetEncoder;
+import java.util.ArrayList;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  * This is an InputStream constructed from list of ByteBuffers. This is
  * used in non-blocking mode.
- * @since 1.4.5
+ *
  * @author Akshathkumar Shetty
+ * @since 1.4.5
  */
 public class ByteBufferInputStream extends InputStream {
 	private static final Logger logger = Logger.getLogger(ByteBufferInputStream.class.getName());
+
 	static {
 		logger.setLevel(Level.INFO);
 	}
 
 	/**
-	 * Sets the debug flag. 
+	 * Sets the debug flag.
 	 */
 	public static void setDebug(boolean flag) {
-		if(flag) 
+		if (flag)
 			logger.setLevel(Level.FINEST);
 		else
 			logger.setLevel(Level.INFO);
@@ -65,7 +73,7 @@ public class ByteBufferInputStream extends InputStream {
 	private boolean lookingForLineFeed = false;
 
 	public ByteBufferInputStream(ArrayList bufferList, ClientHandler handler, String charset) {
-		if(bufferList==null || handler==null)
+		if (bufferList == null || handler == null)
 			throw new IllegalArgumentException("ArrayList or ClientHandler was null.");
 		this.bufferList = bufferList;
 		this.handler = handler;
@@ -79,11 +87,11 @@ public class ByteBufferInputStream extends InputStream {
 		int count = 0;
 		ByteBuffer byteBuffer = null;
 		int size = bufferList.size();
-		for(int c=0;c<size;c++) {
-			byteBuffer = (ByteBuffer)bufferList.get(c);
+		for (int c = 0; c < size; c++) {
+			byteBuffer = (ByteBuffer) bufferList.get(c);
 			count += byteBuffer.remaining();
 		}
-		logger.finest("count: "+count);
+		logger.finest("count: " + count);
 		return count;
 	}
 
@@ -91,25 +99,25 @@ public class ByteBufferInputStream extends InputStream {
 		int count = 0;
 		ByteBuffer byteBuffer = null;
 
-		if(lookingForLineFeed) {
+		if (lookingForLineFeed) {
 			char c = '\0';
-			if(strings.length()!=0) {
-				c = strings.charAt(0);			
-				if(c=='\n') {				
+			if (strings.length() != 0) {
+				c = strings.charAt(0);
+				if (c == '\n') {
 					strings.deleteCharAt(0);
 					lookingForLineFeed = false;
 				}
 			} else {
-				while(!bufferList.isEmpty()) {
-					byteBuffer = (ByteBuffer)bufferList.get(0);
-					if(byteBuffer.remaining()==0) {
+				while (!bufferList.isEmpty()) {
+					byteBuffer = (ByteBuffer) bufferList.get(0);
+					if (byteBuffer.remaining() == 0) {
 						returnBufferBack();
 						continue;
 					}
-					
+
 					int p = byteBuffer.position();
 					c = (char) byteBuffer.get(p);
-					if(c=='\n') {
+					if (c == '\n') {
 						byteBuffer.get();//move position
 						lookingForLineFeed = false;
 					}
@@ -118,11 +126,11 @@ public class ByteBufferInputStream extends InputStream {
 			}
 		}
 		count += strings.length();
-		
-		
+
+
 		int size = bufferList.size();
-		for(int c=0;c<size;c++) {
-			byteBuffer = (ByteBuffer)bufferList.get(c);
+		for (int c = 0; c < size; c++) {
+			byteBuffer = (ByteBuffer) bufferList.get(c);
 			count += byteBuffer.remaining();
 		}
 		//logger.finest("count: "+count);
@@ -130,7 +138,7 @@ public class ByteBufferInputStream extends InputStream {
 	}
 
 	public synchronized void close() throws IOException {
-		if(handler.getSocketChannel()!=null) handler.getSocketChannel().close();
+		if (handler.getSocketChannel() != null) handler.getSocketChannel().close();
 		//handler.closeConnection();
 	}
 
@@ -140,31 +148,31 @@ public class ByteBufferInputStream extends InputStream {
 
 	public synchronized int read() throws IOException {
 		handler.isConnected();
-		if(strings.length()!=0) {
+		if (strings.length() != 0) {
 			addStringsBackAsBuffer();
 		}
 
-		if(bufferList.isEmpty()) {
+		if (bufferList.isEmpty()) {
 			try {
 				wait();
-			} catch(InterruptedException ie) {
-				logger.warning("InterruptedException: "+ie);
+			} catch (InterruptedException ie) {
+				logger.warning("InterruptedException: " + ie);
 				return -1;
-			}			
-			if(bufferList.isEmpty()) return -1;
+			}
+			if (bufferList.isEmpty()) return -1;
 		}
 		ByteBuffer byteBuffer = null;
-		while(!bufferList.isEmpty()) {
-			byteBuffer = (ByteBuffer)bufferList.get(0);
-			if(byteBuffer.remaining()==0) {
+		while (!bufferList.isEmpty()) {
+			byteBuffer = (ByteBuffer) bufferList.get(0);
+			if (byteBuffer.remaining() == 0) {
 				returnBufferBack();
 				continue;
 			}
 
-			if(lookingForLineFeed) {
+			if (lookingForLineFeed) {
 				int lflfChar = (int) byteBuffer.get();
 				lookingForLineFeed = false;
-				if(lflfChar==(int)'\n') {
+				if (lflfChar == (int) '\n') {
 					continue;
 				} else {
 					return lflfChar;
@@ -182,19 +190,19 @@ public class ByteBufferInputStream extends InputStream {
 
 	public synchronized int read(byte[] b, int off, int len) throws IOException {
 		handler.isConnected();
-		if(strings.length()!=0) {
+		if (strings.length() != 0) {
 			addStringsBackAsBuffer();
 		}
 
-		if(bufferList.isEmpty()) {
+		if (bufferList.isEmpty()) {
 			try {
 				wait();
-			} catch(InterruptedException ie) {
-				logger.warning("InterruptedException: "+ie);
+			} catch (InterruptedException ie) {
+				logger.warning("InterruptedException: " + ie);
 				//ie.printStackTrace();
 				return -1;
 			}
-			if(bufferList.isEmpty()) return -1;
+			if (bufferList.isEmpty()) return -1;
 		}
 		ByteBuffer byteBuffer = null;
 		int read = 0;
@@ -204,42 +212,42 @@ public class ByteBufferInputStream extends InputStream {
 			byteBuffer = (ByteBuffer) bufferList.get(0);
 			remaining = byteBuffer.remaining();
 
-			if(remaining==0) {
+			if (remaining == 0) {
 				returnBufferBack();
 				continue;
-			}			
+			}
 
-			if(lookingForLineFeed) {
+			if (lookingForLineFeed) {
 				int p = byteBuffer.position();
-				byte lflfChar = byteBuffer.get(p);		
+				byte lflfChar = byteBuffer.get(p);
 				lookingForLineFeed = false;
 
-				if(lflfChar==(byte)'\n') {
+				if (lflfChar == (byte) '\n') {
 					byteBuffer.get();//move position
 					continue;
 				}
 			}
 
-			if(remaining < toRead) {
+			if (remaining < toRead) {
 				byteBuffer.get(b, off, remaining);
 				off = off + remaining;
 
 				read = read + remaining;
-				toRead = toRead - remaining;				
+				toRead = toRead - remaining;
 			} else {
 				byteBuffer.get(b, off, toRead);
 				read = read + toRead;
 				return read;
 			}
-		} while(!bufferList.isEmpty());
+		} while (!bufferList.isEmpty());
 		return read;
 	}
 
 	public long skip(long n) throws IOException {
-		if(n<0) return 0;
-		int s=0;
-		for(;s<n;s++) {
-			if(read()==-1) break;
+		if (n < 0) return 0;
+		int s = 0;
+		for (; s < n; s++) {
+			if (read() == -1) break;
 		}
 		return s;
 	}
@@ -250,26 +258,26 @@ public class ByteBufferInputStream extends InputStream {
 			ByteBuffer bb = encoder.encode(CharBuffer.wrap(strings));
 			strings.setLength(0);
 			do {
-				if(borrowBuffer==null) {
-					borrowBuffer = (ByteBuffer) 
+				if (borrowBuffer == null) {
+					borrowBuffer = (ByteBuffer)
 							handler.getServer().getByteBufferPool().borrowObject();
 				}
 
 				borrowBuffer.put(bb.get());
 
-				if(borrowBuffer.hasRemaining()==false) {
+				if (borrowBuffer.hasRemaining() == false) {
 					borrowBuffer.flip();
 					bufferList.add(0, borrowBuffer);
 					borrowBuffer = null;
 				}
-			} while(bb.hasRemaining());
+			} while (bb.hasRemaining());
 
-			if(borrowBuffer!=null) {
+			if (borrowBuffer != null) {
 				borrowBuffer.flip();
 				bufferList.add(0, borrowBuffer);
 			}
-		} catch(Exception er) {
-			logger.warning("Error : "+er);
+		} catch (Exception er) {
+			logger.warning("Error : " + er);
 		}
 		start = 0;
 		index = -1;
@@ -277,20 +285,22 @@ public class ByteBufferInputStream extends InputStream {
 	}
 
 	private void returnBufferBack() {
-		returnBufferBack((ByteBuffer)bufferList.remove(0));
+		returnBufferBack((ByteBuffer) bufferList.remove(0));
 	}
 
 	private void returnBufferBack(ByteBuffer byteBuffer) {
 		try {
-			handler.getServer().getByteBufferPool().returnObject(byteBuffer);	
-		} catch(Exception er) {
-			logger.warning("Error while returning ByteBuffer to pool: "+er);
+			handler.getServer().getByteBufferPool().returnObject(byteBuffer);
+		} catch (Exception er) {
+			logger.warning("Error while returning ByteBuffer to pool: " + er);
 		}
 	}
 
 	//-- extra helpers
+
 	/**
-	 * Checks if a line of String is ready to be read. 
+	 * Checks if a line of String is ready to be read.
+	 *
 	 * @throws IOException if connection is lost or closed.
 	 */
 	public synchronized boolean isLineReady() throws IOException {
@@ -299,23 +309,23 @@ public class ByteBufferInputStream extends InputStream {
 
 		result = isLineReadyForStringBuilder();
 
-		if(result==true || bufferList.isEmpty()) {
-			if(logger.isLoggable(Level.FINEST))
-				logger.finest("result: "+result);
+		if (result == true || bufferList.isEmpty()) {
+			if (logger.isLoggable(Level.FINEST))
+				logger.finest("result: " + result);
 			return result;
 		}
 
 		ByteBuffer byteBuffer = null;
 		CharBuffer charBuffer = null;
-		
-		while(result==false && !bufferList.isEmpty()) {
-			byteBuffer = (ByteBuffer)bufferList.get(0);
-			if(byteBuffer.remaining()==0) {
+
+		while (result == false && !bufferList.isEmpty()) {
+			byteBuffer = (ByteBuffer) bufferList.get(0);
+			if (byteBuffer.remaining() == 0) {
 				returnBufferBack();
 				continue;
 			}
 			charBuffer = decoder.decode(byteBuffer);
-			if(charBuffer==null) {
+			if (charBuffer == null) {
 				returnBufferBack();
 				continue;
 			}
@@ -326,21 +336,21 @@ public class ByteBufferInputStream extends InputStream {
 			result = isLineReadyForStringBuilder();
 		}//end of while
 
-		if(logger.isLoggable(Level.FINEST))
-			logger.finest("result: "+result);
+		if (logger.isLoggable(Level.FINEST))
+			logger.finest("result: " + result);
 		return result;
 	}
 
 	private boolean isLineReadyForStringBuilder() {
-		if(index!=-1) return true;
+		if (index != -1) return true;
 
 		int stringsLength = strings.length();
 
-		while(pos < stringsLength) {
+		while (pos < stringsLength) {
 			char c = strings.charAt(pos);
 
-			if(c=='\n') {
-				if(lookingForLineFeed) {
+			if (c == '\n') {
+				if (lookingForLineFeed) {
 					strings.deleteCharAt(0);
 					stringsLength--;
 					lookingForLineFeed = false;
@@ -349,8 +359,9 @@ public class ByteBufferInputStream extends InputStream {
 					index = pos;
 					pos++;
 					return true;
-				}				
-			} if(c=='\r') {
+				}
+			}
+			if (c == '\r') {
 				index = pos;
 				lookingForLineFeed = true;
 				pos++;
@@ -366,15 +377,16 @@ public class ByteBufferInputStream extends InputStream {
 	/**
 	 * Reads a line of String if ready. If line is not yet ready this will
 	 * block. To find out if the line is ready use <code>isLineReady()</code>
-	 * @see #isLineReady() 
+	 *
+	 * @see #isLineReady()
 	 */
 	public synchronized String readLine() throws IOException {
-		if(index==-1) {
-			while(isLineReady()==false) {
+		if (index == -1) {
+			while (isLineReady() == false) {
 				try {
 					wait();
-				} catch(InterruptedException ie) {
-					logger.warning("InterruptedException: "+ie);
+				} catch (InterruptedException ie) {
+					logger.warning("InterruptedException: " + ie);
 					return null;
 				}
 			}
@@ -383,11 +395,11 @@ public class ByteBufferInputStream extends InputStream {
 		int stringsLength = strings.length();
 
 		Assertion.affirm(index <= stringsLength);
-		String data = strings.substring(start,index);
-		
-		if(pos < stringsLength)
+		String data = strings.substring(start, index);
+
+		if (pos < stringsLength)
 			strings.delete(0, pos);
-		else 
+		else
 			strings.setLength(0);
 
 		start = 0;
@@ -397,25 +409,25 @@ public class ByteBufferInputStream extends InputStream {
 	}
 
 	public void dumpContent() {
-		if(logger.isLoggable(Level.FINE)==false) {
+		if (logger.isLoggable(Level.FINE) == false) {
 			//logger.warning("Can't precede. Logging level FINE is not loggable! ");
 			return;
 		}
 
 		logger.fine("Start of dump..");
-		synchronized(bufferList) {
+		synchronized (bufferList) {
 			int size = bufferList.size();
 			ByteBuffer byteBuffer = null;
-			if(strings.length()!=0) {
-				logger.fine("[decoded] "+strings);
+			if (strings.length() != 0) {
+				logger.fine("[decoded] " + strings);
 			}
-			for(int c=0;c<size;c++) {
-				byteBuffer = (ByteBuffer)bufferList.get(c);
+			for (int c = 0; c < size; c++) {
+				byteBuffer = (ByteBuffer) bufferList.get(c);
 				try {
-					logger.fine("["+c+"] "+decoder.decode(byteBuffer.duplicate()));	
-				} catch(Exception e) {
-					logger.fine("["+c+"] Error : "+e);
-				}				
+					logger.fine("[" + c + "] " + decoder.decode(byteBuffer.duplicate()));
+				} catch (Exception e) {
+					logger.fine("[" + c + "] Error : " + e);
+				}
 			}
 		}
 		logger.fine("End of dump..");

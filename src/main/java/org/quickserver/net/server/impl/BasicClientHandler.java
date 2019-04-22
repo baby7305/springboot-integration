@@ -1,10 +1,10 @@
 /*
- * This file is part of the QuickServer library 
+ * This file is part of the QuickServer library
  * Copyright (C) QuickServer.org
  *
  * Use, modification, copying and distribution of this software is subject to
- * the terms and conditions of the GNU Lesser General Public License. 
- * You should have received a copy of the GNU LGP License along with this 
+ * the terms and conditions of the GNU Lesser General Public License.
+ * You should have received a copy of the GNU LGP License along with this
  * library; if not, you can download a copy from <http://www.quickserver.org/>.
  *
  * For questions, suggestions, bug-reports, enhancement-requests etc.
@@ -14,31 +14,38 @@
 
 package org.quickserver.net.server.impl;
 
+import org.quickserver.net.AppException;
+import org.quickserver.net.server.*;
+import org.quickserver.util.Assertion;
+import org.quickserver.util.MyString;
+
+import javax.net.ssl.SSLEngine;
+import javax.net.ssl.SSLSocket;
 import java.io.*;
+import java.net.InetAddress;
 import java.net.Socket;
 import java.net.SocketException;
 import java.net.SocketTimeoutException;
-import java.net.InetAddress;
+import java.nio.channels.ClosedChannelException;
+import java.nio.channels.SelectionKey;
+import java.nio.channels.SocketChannel;
+import java.security.KeyManagementException;
+import java.security.NoSuchAlgorithmException;
 import java.util.*;
-import java.util.logging.*;
-import java.security.*;
-import java.nio.channels.*;
 import java.util.concurrent.ConcurrentLinkedQueue;
-
-import org.quickserver.net.*;
-import org.quickserver.util.*;
-import org.quickserver.net.server.*;
-import javax.net.ssl.*;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  * Basic implementation of ClientHandler that handles clients for QuickServer.
- * <p> This class is used by {@link QuickServer} to handle each new client 
- * connected. This class is responsible to handle client sockets. It can operate 
+ * <p> This class is used by {@link QuickServer} to handle each new client
+ * connected. This class is responsible to handle client sockets. It can operate
  * in both blocking mode and non-blocking mode (java nio).</p>
  * <p>
- * Contributions By: 
- *   Martin Benns : BYTE Mode
+ * Contributions By:
+ * Martin Benns : BYTE Mode
  * </p>
+ *
  * @author Akshathkumar Shetty
  * @author Martin Benns : Added BYTE mode
  */
@@ -50,24 +57,36 @@ public abstract class BasicClientHandler implements ClientHandler {
 
 	//Some variable are not initialised to any value because the 
 	//default java value was desired initial value. 
-	
-	/** Client socket */
+
+	/**
+	 * Client socket
+	 */
 	protected Socket socket;
-	/** Client authorisation status */
+	/**
+	 * Client authorisation status
+	 */
 	protected volatile boolean authorised;
-	/** Count of client login attempts */
+	/**
+	 * Count of client login attempts
+	 */
 	protected int counAuthTry;
-	/** max allowed login attempts */
+	/**
+	 * max allowed login attempts
+	 */
 	protected int maxAuthTry = 5;
-	/** timeout message */
+	/**
+	 * timeout message
+	 */
 	protected String timeoutMsg;
-	/** Message to be displayed when max login attempt reaches.*/
-	protected String maxAuthTryMsg;	
+	/**
+	 * Message to be displayed when max login attempt reaches.
+	 */
+	protected String maxAuthTryMsg;
 
 	protected int socketTimeout;
 	protected volatile boolean connection; //false
 	protected boolean lost; //false
-	
+
 	protected QuickServer quickServer;
 	protected Authenticator authenticator; //v1.3
 	protected ClientAuthenticationHandler clientAuthenticationHandler; //v1.4.6
@@ -89,12 +108,12 @@ public abstract class BasicClientHandler implements ClientHandler {
 	protected BufferedOutputStream b_out;
 
 	//logger for the application using this QuickServer
-	protected Logger appLogger; 
+	protected Logger appLogger;
 	protected DataMode dataModeIN = null;
 	protected DataMode dataModeOUT = null;
 
 	protected boolean communicationLogging = true;
-	protected Date clientConnectedTime = null;	
+	protected Date clientConnectedTime = null;
 	protected Date lastCommunicationTime = null;
 	protected boolean secure = false;
 
@@ -102,9 +121,9 @@ public abstract class BasicClientHandler implements ClientHandler {
 	protected static final ThreadLocal threadEvent = new ThreadLocal();
 
 	protected String maxConnectionMsg;
-	protected final Set clientEvents = new HashSet();	
+	protected final Set clientEvents = new HashSet();
 	protected ConcurrentLinkedQueue unprocessedClientEvents = new ConcurrentLinkedQueue();
-	
+
 	protected volatile boolean closeOrLostNotified;
 	protected final Object lockObj = new Object();
 	protected volatile boolean willClean;
@@ -118,22 +137,25 @@ public abstract class BasicClientHandler implements ClientHandler {
 	private int port;
 
 	protected SSLEngine sslEngine;
-	
+
 	protected int totalReadBytes;
 	protected int totalWrittenBytes;
 
 	static class InstanceId {
 		private int id = 0;
+
 		public int getNextId() {
 			return ++id;
 		}
-	};
+	}
+
+	;
 
 	private static int getNewId(int instanceCount) {
-		InstanceId instanceId = (InstanceId) idMap.get(""+instanceCount);
-		if(instanceId==null) {
+		InstanceId instanceId = (InstanceId) idMap.get("" + instanceCount);
+		if (instanceId == null) {
 			instanceId = new InstanceId();
-			idMap.put(""+instanceCount, instanceId);
+			idMap.put("" + instanceCount, instanceId);
 		}
 		return instanceId.getNextId();
 	}
@@ -158,16 +180,18 @@ public abstract class BasicClientHandler implements ClientHandler {
 
 	public BasicClientHandler() {
 		this(-1);
-	}	
-	
+	}
+
 	public void clean() {
 		counAuthTry = 0;
 		authorised = false;
 		in = null;
 		out = null;
 		bufferedReader = null;
-		o_out = null; o_in = null;
-		b_in = null; b_out = null;
+		o_out = null;
+		o_in = null;
+		b_in = null;
+		b_out = null;
 
 		dataModeIN = null;
 		dataModeOUT = null;
@@ -179,7 +203,7 @@ public abstract class BasicClientHandler implements ClientHandler {
 		communicationLogging = true;
 		socketTimeout = 0;
 		secure = false;
-		
+
 		authenticator = null;
 		clientAuthenticationHandler = null;//1.4.6
 		clientCommandHandler = null;
@@ -188,18 +212,18 @@ public abstract class BasicClientHandler implements ClientHandler {
 		clientData = null;
 
 		maxConnectionMsg = null;
-		synchronized(clientEvents) {
+		synchronized (clientEvents) {
 			clientEvents.clear();
 			unprocessedClientEvents.clear();
-		}		
+		}
 
 		closeOrLostNotified = false;
 
-		if(socket!=null) {
+		if (socket != null) {
 			try {
 				socket.close();
-			} catch(Exception er) {
-				appLogger.log(Level.WARNING, "Error in closing socket: "+er, er);
+			} catch (Exception er) {
+				appLogger.log(Level.WARNING, "Error in closing socket: " + er, er);
 			}
 			socket = null;
 		}
@@ -208,31 +232,32 @@ public abstract class BasicClientHandler implements ClientHandler {
 		port = 0;
 
 		quickServer = null;
-		willClean  = false;
+		willClean = false;
 		charset = null;
 
 		sslEngine = null;
-		
+
 		totalReadBytes = 0;
 		totalWrittenBytes = 0;
 	}
 
 	/**
-	 * Associates the ClientHanlder with the client encapsulated by 
+	 * Associates the ClientHanlder with the client encapsulated by
 	 * <code>theClient</code>.
-	 * @param theClient object that encapsulates client socket 
-	 *  and its configuration details.
+	 *
+	 * @param theClient object that encapsulates client socket
+	 *                  and its configuration details.
 	 */
 	public void handleClient(TheClient theClient) throws Exception {
 		setServer(theClient.getServer());
 
-		if(getServer().isRunningSecure()==true) {
+		if (getServer().isRunningSecure() == true) {
 			setSecure(true);
 			sslEngine = getServer().getSSLContext().createSSLEngine();
 		}
 		setSocket(theClient.getSocket());
 
-		if(theClient.getTrusted()==false) {
+		if (theClient.getTrusted() == false) {
 			setAuthenticator(theClient.getAuthenticator());
 			setClientAuthenticationHandler(theClient.getClientAuthenticationHandler());
 		}
@@ -241,16 +266,16 @@ public abstract class BasicClientHandler implements ClientHandler {
 		setClientCommandHandler(theClient.getClientCommandHandler());
 		setClientObjectHandler(theClient.getClientObjectHandler());
 		setClientBinaryHandler(theClient.getClientBinaryHandler()); //v1.4
-		
+
 		setClientData(theClient.getClientData());
-		if(theClient.getTrusted()==false) {
+		if (theClient.getTrusted() == false) {
 			socketTimeout = theClient.getTimeout();
 		}
 		timeoutMsg = theClient.getTimeoutMsg();
 		maxAuthTryMsg = theClient.getMaxAuthTryMsg();
 		maxAuthTry = theClient.getMaxAuthTry(); //v1.2
 		appLogger = quickServer.getAppLogger(); //v1.2
-		
+
 		setCommunicationLogging(theClient.getCommunicationLogging()); //v1.3.2
 
 		maxConnectionMsg = theClient.getMaxConnectionMsg();//1.4.5
@@ -258,145 +283,164 @@ public abstract class BasicClientHandler implements ClientHandler {
 	}
 
 	/**
-     * Returns the QuickServer object that created it.
-     * @see #setServer
-     */
+	 * Returns the QuickServer object that created it.
+	 *
+	 * @see #setServer
+	 */
 	public QuickServer getServer() {
 		return quickServer;
 	}
+
 	/**
-     * Sets the QuickServer object associated with this ClientHandler.
-     * @see #getServer
-     */
+	 * Sets the QuickServer object associated with this ClientHandler.
+	 *
+	 * @see #getServer
+	 */
 	protected void setServer(QuickServer server) {
-		Assertion.affirm(server!=null, "QuickServer can't be null!");
+		Assertion.affirm(server != null, "QuickServer can't be null!");
 		quickServer = server;
 	}
-	
+
 	/**
-     * Sets the ClientData object associated with this ClientHandler
+	 * Sets the ClientData object associated with this ClientHandler
+	 *
 	 * @see ClientData
-     * @see #getClientData
-     */
+	 * @see #getClientData
+	 */
 	protected void setClientData(ClientData data) {
 		this.clientData = data;
 	}
+
 	/**
-     * Returns the ClientData object associated with this ClientHandler, 
+	 * Returns the ClientData object associated with this ClientHandler,
 	 * if not set will return <code>null</code>
+	 *
 	 * @see ClientData
-     * @see #setClientData
-     */
+	 * @see #setClientData
+	 */
 	public ClientData getClientData() {
 		return clientData;
 	}
 
 	/**
-     * Sets the ClientAuthenticationHandler class that handles the 
+	 * Sets the ClientAuthenticationHandler class that handles the
 	 * authentication of a client.
-	 * @param clientAuthenticationHandler fully qualified name of the class that 
-	 * implements {@link ClientAuthenticationHandler}.
+	 *
+	 * @param clientAuthenticationHandler fully qualified name of the class that
+	 *                                    implements {@link ClientAuthenticationHandler}.
 	 * @since 1.4.6
-     */
+	 */
 	protected void setClientAuthenticationHandler(ClientAuthenticationHandler clientAuthenticationHandler) {
 		this.clientAuthenticationHandler = clientAuthenticationHandler;
 	}
 
 	/**
-     * Sets the Authenticator class that handles the 
+	 * Sets the Authenticator class that handles the
 	 * authentication of a client.
-	 * @param authenticator fully qualified name of the class that 
-	 * implements {@link Authenticator}.
+	 *
+	 * @param authenticator fully qualified name of the class that
+	 *                      implements {@link Authenticator}.
 	 * @since 1.3
-     */
+	 */
 	protected void setAuthenticator(Authenticator authenticator) {
 		this.authenticator = authenticator;
 	}
 
 	/**
-	 * Returns the {@link java.io.InputStream} associated with 
+	 * Returns the {@link java.io.InputStream} associated with
 	 * the Client being handled.
+	 *
 	 * @see #setInputStream
 	 */
 	public InputStream getInputStream() {
 		return in;
 	}
+
 	/**
-	 * Sets the {@link java.io.InputStream} associated with 
+	 * Sets the {@link java.io.InputStream} associated with
 	 * the Client being handled.
-	 * @since 1.1
+	 *
 	 * @see #getInputStream
+	 * @since 1.1
 	 */
 	protected abstract void setInputStream(InputStream in) throws IOException;
 
 	/**
-	 * Returns the {@link java.io.OutputStream} associated with 
+	 * Returns the {@link java.io.OutputStream} associated with
 	 * the Client being handled.
+	 *
 	 * @see #setOutputStream
 	 */
 	public OutputStream getOutputStream() {
 		return out;
 	}
+
 	/**
-	 * Set the {@link java.io.OutputStream} associated with 
+	 * Set the {@link java.io.OutputStream} associated with
 	 * the Client being handled.
-	 * @since 1.1
+	 *
+	 * @throws IOException if ObjectOutputStream could not be created.
 	 * @see #getOutputStream
-	 * @exception IOException if ObjectOutputStream could not be created.
+	 * @since 1.1
 	 */
 	public void setOutputStream(OutputStream out) throws IOException {
 		this.out = out;
-		if(getDataMode(DataType.OUT) == DataMode.STRING || 
-				getDataMode(DataType.OUT) == DataMode.BYTE || 
+		if (getDataMode(DataType.OUT) == DataMode.STRING ||
+				getDataMode(DataType.OUT) == DataMode.BYTE ||
 				getDataMode(DataType.OUT) == DataMode.BINARY) {
 			o_out = null;
 			b_out = new BufferedOutputStream(out);
-		} else if(getDataMode(DataType.OUT) == DataMode.OBJECT) {
+		} else if (getDataMode(DataType.OUT) == DataMode.OBJECT) {
 			b_out = null;
 			o_out = new ObjectOutputStream(out);
 			o_out.flush();
 		} else {
-			throw new IllegalStateException("Unknown DataMode " +getDataMode(DataType.OUT));
+			throw new IllegalStateException("Unknown DataMode " + getDataMode(DataType.OUT));
 		}
 	}
-	
+
 	/**
-	 * Returns the {@link java.io.BufferedReader} associated with 
-	 * the Client being handled. Note that this is only available under blocking mode. 
+	 * Returns the {@link java.io.BufferedReader} associated with
+	 * the Client being handled. Note that this is only available under blocking mode.
+	 *
 	 * @see #getBufferedWriter
 	 */
 	public abstract BufferedReader getBufferedReader();
 
 	/**
-	 * Returns the {@link java.io.BufferedWriter} associated with 
+	 * Returns the {@link java.io.BufferedWriter} associated with
 	 * the Client being handled.
+	 *
 	 * @deprecated since 1.4.5 use getOutputStream()
 	 */
 	public BufferedWriter getBufferedWriter() {
 		try {
 			return new BufferedWriter(new OutputStreamWriter(b_out, charset));
-		} catch(UnsupportedEncodingException e) {
+		} catch (UnsupportedEncodingException e) {
 			logger.log(Level.WARNING, "{0} was not supported : {1}", new Object[]{charset, e});
 			return new BufferedWriter(new OutputStreamWriter(b_out));
-		}		
+		}
 	}
 
 	/**
-	 * Returns the {@link java.io.ObjectOutputStream} associated with 
+	 * Returns the {@link java.io.ObjectOutputStream} associated with
 	 * the Client being handled.
-	 * It will be <code>null</code> if no {@link ClientObjectHandler} 
+	 * It will be <code>null</code> if no {@link ClientObjectHandler}
 	 * was set in {@link QuickServer}.
+	 *
 	 * @see #getObjectInputStream
 	 * @since 1.2
 	 */
 	public ObjectOutputStream getObjectOutputStream() {
 		return o_out;
 	}
+
 	/**
-	 * Returns the {@link java.io.ObjectInputStream} associated with 
+	 * Returns the {@link java.io.ObjectInputStream} associated with
 	 * the Client being handled.
-	 * It will be <code>null</code> if no {@link ClientObjectHandler} 
+	 * It will be <code>null</code> if no {@link ClientObjectHandler}
 	 * was set in {@link QuickServer}.
+	 *
 	 * @see #getObjectOutputStream
 	 * @since 1.2
 	 */
@@ -405,52 +449,60 @@ public abstract class BasicClientHandler implements ClientHandler {
 	}
 
 	/**
-     * Sets the ClientEventHandler class that gets notified of client events.
+	 * Sets the ClientEventHandler class that gets notified of client events.
+	 *
 	 * @since 1.4.6
-     */
+	 */
 	protected void setClientEventHandler(ClientEventHandler handler) {
-		clientEventHandler=handler;
+		clientEventHandler = handler;
 	}
 
 	/**
-     * Sets the ClientExtendedEventHandler class that gets notified of extended client events.
+	 * Sets the ClientExtendedEventHandler class that gets notified of extended client events.
+	 *
 	 * @since 1.4.6
-     */
+	 */
 	protected void setClientExtendedEventHandler(ClientExtendedEventHandler handler) {
-		clientExtendedEventHandler=handler;
+		clientExtendedEventHandler = handler;
 	}
 
 	/**
-     * Sets the ClientCommandHandler class that interacts with 
+	 * Sets the ClientCommandHandler class that interacts with
 	 * client sockets.
-     */
+	 */
 	protected void setClientCommandHandler(ClientCommandHandler handler) {
-		clientCommandHandler=handler;
+		clientCommandHandler = handler;
 	}
 
 	/**
-     * Sets the ClientObjectHandler class that interacts with 
+	 * Sets the ClientObjectHandler class that interacts with
 	 * client sockets.
-	 * @param handler fully qualified name of the class that 
-	 * implements {@link ClientObjectHandler}
+	 *
+	 * @param handler fully qualified name of the class that
+	 *                implements {@link ClientObjectHandler}
 	 * @since 1.2
-     */
+	 */
 	protected void setClientObjectHandler(ClientObjectHandler handler) {
 		clientObjectHandler = handler;
 	}
 
-	/** Closes client socket associated. */
+	/**
+	 * Closes client socket associated.
+	 */
 	public abstract void closeConnection();
 
-	/** Returns client socket associated. */
+	/**
+	 * Returns client socket associated.
+	 */
 	public Socket getSocket() {
 		return socket;
 	}
 
-	/** 
-	 * Returns client socket associated. 
-	 * @since 1.4.0
+	/**
+	 * Returns client socket associated.
+	 *
 	 * @see #updateInputOutputStreams
+	 * @since 1.4.0
 	 */
 	public void setSocket(Socket socket) {
 		this.socket = socket;
@@ -458,7 +510,8 @@ public abstract class BasicClientHandler implements ClientHandler {
 
 	/**
 	 * Checks if the client is still connected.
-	 * @exception SocketException if Socket is not open.
+	 *
+	 * @throws SocketException if Socket is not open.
 	 * @deprecated since 1.4.5 Use {@link #isConnected}
 	 */
 	public boolean isConected() throws SocketException {
@@ -467,23 +520,25 @@ public abstract class BasicClientHandler implements ClientHandler {
 
 	/**
 	 * Checks if the client is still connected.
-	 * @exception SocketException if Socket is not open.
+	 *
+	 * @throws SocketException if Socket is not open.
 	 * @since 1.4.5
 	 */
 	public boolean isConnected() throws SocketException {
-		if(isOpen()==false)
+		if (isOpen() == false)
 			throw new SocketException("Connection is no more open!");
 		else
 			return true;
 	}
 
 	/**
-	 * Checks if the client is still connected and if socket is open. This is same as isConnected() 
-     * but does not throw SocketException.
+	 * Checks if the client is still connected and if socket is open. This is same as isConnected()
+	 * but does not throw SocketException.
+	 *
 	 * @since 1.4.6
 	 */
 	public boolean isOpen() {
-		if(lost==true || socket==null || socket.isConnected()==false || socket.isClosed()==true)
+		if (lost == true || socket == null || socket.isConnected() == false || socket.isClosed() == true)
 			return false;
 		else
 			return true;
@@ -491,10 +546,11 @@ public abstract class BasicClientHandler implements ClientHandler {
 
 	/**
 	 * Checks if the client is closed.
+	 *
 	 * @since 1.4.1
 	 */
 	public boolean isClosed() {
-		if(socket==null || socket.isClosed()==true)
+		if (socket == null || socket.isClosed() == true)
 			return true;
 		else
 			return false;
@@ -504,21 +560,21 @@ public abstract class BasicClientHandler implements ClientHandler {
 	 * Send a String message to the connected client
 	 * it adds a new line{\r\n} to the end of the string.
 	 * If client is not connected it will just return.
-	 * @exception IOException 
-	 *        if Socket IO Error or Socket was closed by the client.
+	 *
+	 * @throws IOException if Socket IO Error or Socket was closed by the client.
 	 */
 	public void sendClientMsg(String msg) throws IOException {
 		isConnected();
 
-		if(dataModeOUT != DataMode.STRING)
-			throw new IllegalStateException("Can't send String :" + 
-				"DataType.OUT is not in DataMode.STRING");
-		if(getCommunicationLogging()) {
+		if (dataModeOUT != DataMode.STRING)
+			throw new IllegalStateException("Can't send String :" +
+					"DataType.OUT is not in DataMode.STRING");
+		if (getCommunicationLogging()) {
 			appLogger.log(Level.FINE, "Sending [{0}] : {1}", new Object[]{getHostAddress(), msg});
 		}
 		byte data[] = msg.getBytes(charset);
 
-		synchronized(this) {
+		synchronized (this) {
 			b_out.write(data, 0, data.length);
 			b_out.write(NEW_LINE_BYTES, 0, NEW_LINE_BYTES.length);
 			totalWrittenBytes = totalWrittenBytes + data.length + NEW_LINE_BYTES.length;
@@ -531,23 +587,23 @@ public abstract class BasicClientHandler implements ClientHandler {
 	/**
 	 * Send a String message to the connected client as a string of bytes.
 	 * If client is not connected it will just return.
+	 *
+	 * @throws IOException if Socket IO Error or Socket was closed by the client.
 	 * @since 1.3.1
-	 * @exception IOException
-	 *        if Socket IO Error or Socket was closed by the client.
 	 */
 	public void sendClientBytes(String msg) throws IOException {
 		isConnected();
 
 		if (dataModeOUT != DataMode.BYTE)
-			throw new IllegalStateException("Can't send String :" + 
-				"DataType.OUT is not in DataMode.BYTE");
-		if(getCommunicationLogging()) {
+			throw new IllegalStateException("Can't send String :" +
+					"DataType.OUT is not in DataMode.BYTE");
+		if (getCommunicationLogging()) {
 			appLogger.log(Level.FINE, "Sending [{0}] : {1}", new Object[]{getHostAddress(), msg});
 		}
 		byte data[] = msg.getBytes(charset);
 
-		synchronized(this) {
-			b_out.write(data,0,data.length);
+		synchronized (this) {
+			b_out.write(data, 0, data.length);
 			totalWrittenBytes = totalWrittenBytes + data.length;
 		}
 		b_out.flush();
@@ -558,26 +614,27 @@ public abstract class BasicClientHandler implements ClientHandler {
 
 	/**
 	 * Send a Object message to the connected client. The message Object
-	 * passed must be serializable. If client is not connected it 
+	 * passed must be serializable. If client is not connected it
 	 * will just return.
-	 * @exception IOException if Socket IO Error or Socket was closed 
-	 * by the client.
-	 * @exception IllegalStateException if DataType.OUT is not in 
-	 *  DataMode.OBJECT
+	 *
+	 * @throws IOException           if Socket IO Error or Socket was closed
+	 *                               by the client.
+	 * @throws IllegalStateException if DataType.OUT is not in
+	 *                               DataMode.OBJECT
 	 * @see #setDataMode
 	 * @since 1.2
 	 */
 	public void sendClientObject(Object msg) throws IOException {
 		isConnected();
 
-		if(dataModeOUT != DataMode.OBJECT)
+		if (dataModeOUT != DataMode.OBJECT)
 			throw new IllegalStateException("Can't send Object : DataType.OUT is not in DataMode.OBJECT");
-		if(getCommunicationLogging()) {
+		if (getCommunicationLogging()) {
 			appLogger.log(Level.FINE, "Sending [{0}] : {1}", new Object[]{getHostAddress(), msg.toString()});
 		}
-		synchronized(this) {
+		synchronized (this) {
 			o_out.writeObject(msg);
-			
+
 			totalWrittenBytes = totalWrittenBytes + 1;
 		}
 		o_out.flush();
@@ -586,7 +643,7 @@ public abstract class BasicClientHandler implements ClientHandler {
 	}
 
 	/**
-	 * Send a String message to the logger associated with 
+	 * Send a String message to the logger associated with
 	 * {@link QuickServer#getAppLogger} with Level.INFO as its level.
 	 */
 	public void sendSystemMsg(String msg) {
@@ -594,8 +651,9 @@ public abstract class BasicClientHandler implements ClientHandler {
 	}
 
 	/**
-	 * Send a String message to the logger associated with 
+	 * Send a String message to the logger associated with
 	 * {@link QuickServer#getAppLogger}.
+	 *
 	 * @since 1.2
 	 */
 	public void sendSystemMsg(String msg, Level level) {
@@ -604,12 +662,13 @@ public abstract class BasicClientHandler implements ClientHandler {
 
 	/**
 	 * Send a String message to the system output stream.
+	 *
 	 * @param newline indicates if new line required at the end.
-	 * @deprecated Use {@link #sendSystemMsg(java.lang.String)}, 
-	 *   since it uses Logging.
+	 * @deprecated Use {@link #sendSystemMsg(java.lang.String)},
+	 * since it uses Logging.
 	 */
 	public void sendSystemMsg(String msg, boolean newline) {
-		if(newline)
+		if (newline)
 			System.out.println(msg);
 		else
 			System.out.print(msg);
@@ -625,7 +684,7 @@ public abstract class BasicClientHandler implements ClientHandler {
 		hostAddress = getSocket().getInetAddress().getHostAddress();//1.4.5
 		port = getSocket().getPort();
 
-		if(logger.isLoggable(Level.FINEST)) {
+		if (logger.isLoggable(Level.FINEST)) {
 			StringBuilder sb = new StringBuilder();
 			sb.append(getName());
 			sb.append(" -> ");
@@ -638,153 +697,154 @@ public abstract class BasicClientHandler implements ClientHandler {
 		socket.setSoTimeout(socketTimeout);
 		connection = true;
 
-		dataModeIN = getServer().getDefaultDataMode(DataType.IN); 
+		dataModeIN = getServer().getDefaultDataMode(DataType.IN);
 		dataModeOUT = getServer().getDefaultDataMode(DataType.OUT);
 
 		updateInputOutputStreams();
 	}
 
 	protected void processMaxConnection(ClientEvent currentEvent) throws IOException {
-		if(clientExtendedEventHandler!=null) {
-			if(clientExtendedEventHandler.handleMaxConnection(this)) {
+		if (clientExtendedEventHandler != null) {
+			if (clientExtendedEventHandler.handleMaxConnection(this)) {
 				removeEvent(getThreadEvent());
-				if(getThreadEvent()==ClientEvent.MAX_CON) {
+				if (getThreadEvent() == ClientEvent.MAX_CON) {
 					currentEvent = ClientEvent.ACCEPT;
-				} else if(getThreadEvent()==ClientEvent.MAX_CON_BLOCKING) {
+				} else if (getThreadEvent() == ClientEvent.MAX_CON_BLOCKING) {
 					currentEvent = ClientEvent.RUN_BLOCKING;
 				} else {
-					throw new IllegalArgumentException("Unknown ClientEvent: "+getThreadEvent());
+					throw new IllegalArgumentException("Unknown ClientEvent: " + getThreadEvent());
 				}
-				synchronized(clientEvents) {
+				synchronized (clientEvents) {
 					clientEvents.add(currentEvent);
 				}
 				threadEvent.set(currentEvent);
 			}
-		} else if(maxConnectionMsg.length()!=0) {
+		} else if (maxConnectionMsg.length() != 0) {
 			out.write(maxConnectionMsg.getBytes(charset), 0, maxConnectionMsg.length());
 			out.write(NEW_LINE_BYTES, 0, NEW_LINE_BYTES.length);
 			out.flush();
 		}
 	}
 
-	protected AuthStatus processAuthorisation() throws SocketException, 
+	protected AuthStatus processAuthorisation() throws SocketException,
 			IOException, AppException {
 		logger.finest("INSIDE");
-		while(authorised==false && connection==true) {
+		while (authorised == false && connection == true) {
 			isConnected();
 
 			counAuthTry++;
 
-			if(authorised == false) {
-				if(counAuthTry > maxAuthTry) {
+			if (authorised == false) {
+				if (counAuthTry > maxAuthTry) {
 					processMaxAuthTry();
 				}
-			}	
+			}
 
-			try	{
-				if(clientAuthenticationHandler!=null) {
+			try {
+				if (clientAuthenticationHandler != null) {
 					return clientAuthenticationHandler.askAuthentication(this);
-				} else if(authenticator!=null) {
-					authorised = authenticator.askAuthorisation(this);	
+				} else if (authenticator != null) {
+					authorised = authenticator.askAuthorisation(this);
 				}
-			} catch(NullPointerException e) {
-				logger.severe("Authenticator implementation has not handled null properly."+
-					" Input from client should be checked for null!");
+			} catch (NullPointerException e) {
+				logger.severe("Authenticator implementation has not handled null properly." +
+						" Input from client should be checked for null!");
 				throw e;
-			} catch(SocketTimeoutException e) {
+			} catch (SocketTimeoutException e) {
 				handleTimeout(e);
 			}
 
-			updateLastCommunicationTime();			
+			updateLastCommunicationTime();
 		} //end of auth while
 		return AuthStatus.SUCCESS;
 	}
 
 	private void processMaxAuthTry() throws SocketException, IOException, AppException {
-		if(clientExtendedEventHandler!=null) {
+		if (clientExtendedEventHandler != null) {
 			clientExtendedEventHandler.handleMaxAuthTry(this);
 		} else {
 			String temp = maxAuthTryMsg;
-			if(dataModeOUT == DataMode.STRING)
+			if (dataModeOUT == DataMode.STRING)
 				temp = temp + NEW_LINE;
-			if(dataModeOUT != DataMode.OBJECT) {
+			if (dataModeOUT != DataMode.OBJECT) {
 				out.write(temp.getBytes(charset));
 				out.flush();
 			}
 		}
 		appLogger.log(Level.WARNING, "Max Auth Try Reached - Client : {0}", getHostAddress());
-		if(true) throw new AppException(maxAuthTryMsg);
+		if (true) throw new AppException(maxAuthTryMsg);
 	}
 
 
 	protected void notifyCloseOrLost() throws IOException {
-		synchronized(this) {
-			if(closeOrLostNotified==false) {
-				if(lost==true) {
-					clientEventHandler.lostConnection(this);				
+		synchronized (this) {
+			if (closeOrLostNotified == false) {
+				if (lost == true) {
+					clientEventHandler.lostConnection(this);
 				} else {
 					clientEventHandler.closingConnection(this);
 				}
 				closeOrLostNotified = true;
-			}			
+			}
 		}
 	}
 
 	protected synchronized void returnClientData() {
-		if(clientData==null || getServer().getClientDataPool()==null)
+		if (clientData == null || getServer().getClientDataPool() == null)
 			return;
 		logger.finest("Returning ClientData to pool");
-		try	{
+		try {
 			getServer().getClientDataPool().returnObject(clientData);
 			clientData = null;
-		} catch(Exception e) {
-			logger.log(Level.WARNING, "IGNORED: Could not return ClientData to pool: "+e, e);
+		} catch (Exception e) {
+			logger.log(Level.WARNING, "IGNORED: Could not return ClientData to pool: " + e, e);
 		}
-	}	
+	}
 
 	protected void returnClientHandler() {
-		try	{
-			synchronized(lockObj) {
+		try {
+			synchronized (lockObj) {
 				logger.log(Level.FINEST, "{0} returning {1}", new Object[]{Thread.currentThread().getName(), getName()});
 				getServer().getClientHandlerPool().returnObject(this);
 			}
-		} catch(Exception e) {
-			logger.log(Level.WARNING, "IGNORED: Could not return ClientHandler to pool: "+e, e);
+		} catch (Exception e) {
+			logger.log(Level.WARNING, "IGNORED: Could not return ClientHandler to pool: " + e, e);
 		}
 	}
 
 	/**
-     * Returns the ClientHandler name
+	 * Returns the ClientHandler name
+	 *
 	 * @since 1.4.6
-     */
+	 */
 	public String getName() {
 		return name;
 	}
 
 	/**
-     * Returns the ClientHandler detailed information.
+	 * Returns the ClientHandler detailed information.
 	 * If ClientData is present and is ClientIdentifiable will return ClientInfo else
 	 * it will return Clients InetAddress and port information.
-     */
+	 */
 	public String info() {
 		StringBuilder sb = new StringBuilder();
 		sb.append("{");
 		sb.append(name);
 		sb.append(" - ");
 		String info = getClientIdentifiable(this);
-		if(info!=null) {
+		if (info != null) {
 			sb.append("[ClientInfo: ");
 			sb.append(info);
 			sb.append(']');
 		}
 
-		if(getSocket()==null || getSocket().isClosed()==true) {
+		if (getSocket() == null || getSocket().isClosed() == true) {
 			sb.append("[non-connected;willClean:").append(getWillClean()).append("]");
-		} else if(info==null) {
+		} else if (info == null) {
 			sb.append('[');
 			sb.append(hostAddress);
 			sb.append(':');
-			sb.append(port);	
+			sb.append(port);
 			sb.append(']');
 		}
 		sb.append('}');
@@ -792,26 +852,26 @@ public abstract class BasicClientHandler implements ClientHandler {
 	}
 
 	/**
-     * Returns the ClientHandler information.
+	 * Returns the ClientHandler information.
 	 * If ClientData is present and is ClientIdentifiable will return ClientInfo else
 	 * it will return Clients InetAddress and port information.
-     */
+	 */
 	public String toString() {
 		StringBuilder sb = new StringBuilder();
 		sb.append("{");
 		sb.append(name);
 		sb.append(" - ");
-		if(getSocket()==null || getSocket().isClosed()==true) {
+		if (getSocket() == null || getSocket().isClosed() == true) {
 			sb.append("[non-connected;willClean:").append(getWillClean()).append("]");
-		} else if(hostAddress!=null) {
+		} else if (hostAddress != null) {
 			sb.append('[');
 			sb.append(hostAddress);
 			sb.append(':');
 			sb.append(port);
 			sb.append(']');
 		}
-		synchronized(clientEvents) {
-			if(clientEvents.isEmpty()==false) {
+		synchronized (clientEvents) {
+			if (clientEvents.isEmpty() == false) {
 				sb.append(' ');
 				sb.append(clientEvents);
 			}
@@ -821,75 +881,78 @@ public abstract class BasicClientHandler implements ClientHandler {
 	}
 
 	protected static String getClientIdentifiable(ClientHandler foundClientHandler) {
-		if(foundClientHandler==null) return null;
+		if (foundClientHandler == null) return null;
 		ClientData foundClientData = null;
 		foundClientData = foundClientHandler.getClientData();
-		if(foundClientData==null)
+		if (foundClientData == null)
 			return null;
-		else if(ClientIdentifiable.class.isInstance(foundClientData)==false)
+		else if (ClientIdentifiable.class.isInstance(foundClientData) == false)
 			return null;
 		else
-			return ((ClientIdentifiable)foundClientData).getClientInfo();
+			return ((ClientIdentifiable) foundClientData).getClientInfo();
 	}
 
 	/**
 	 * Sets the {@link DataMode} for the ClientHandler
-	 *
+	 * <p>
 	 * Note: When mode is DataMode.OBJECT and type is DataType.IN
 	 * this call will block until the client ObjectOutputStream has
 	 * written and flushes the header.
-	 * @since 1.2
-	 * @exception IOException if mode could not be changed.
+	 *
 	 * @param dataMode mode of data exchange - String or Object.
 	 * @param dataType type of data for which mode has to be set.
+	 * @throws IOException if mode could not be changed.
+	 * @since 1.2
 	 */
 	public abstract void setDataMode(DataMode dataMode, DataType dataType) throws IOException;
 
 	protected void checkDataModeSet(DataMode dataMode, DataType dataType) {
-		if(dataMode==DataMode.STRING && dataType==DataType.IN && clientCommandHandler==null) {
+		if (dataMode == DataMode.STRING && dataType == DataType.IN && clientCommandHandler == null) {
 			throw new IllegalArgumentException("Can't set DataType.IN mode to STRING when ClientCommandHandler is not set!");
 		}
 
-		if(dataMode==DataMode.BYTE && dataType==DataType.IN && clientCommandHandler==null) {
+		if (dataMode == DataMode.BYTE && dataType == DataType.IN && clientCommandHandler == null) {
 			throw new IllegalArgumentException("Can't set DataType.IN mode to BYTE when ClientCommandHandler is not set!");
 		}
 
-		if(dataMode==DataMode.OBJECT && dataType==DataType.IN && clientObjectHandler==null) {
+		if (dataMode == DataMode.OBJECT && dataType == DataType.IN && clientObjectHandler == null) {
 			throw new IllegalArgumentException("Can't set DataType.IN mode to OBJECT when ClientObjectHandler is not set!");
 		}
 
-		if(dataMode==DataMode.BINARY && dataType==DataType.IN && clientBinaryHandler==null) {
+		if (dataMode == DataMode.BINARY && dataType == DataType.IN && clientBinaryHandler == null) {
 			throw new IllegalArgumentException("Can't set DataType.IN mode to BINARY when ClientBinaryHandler is not set!");
 		}
 	}
 
 	/**
-	 * Returns the {@link DataMode} of the ClientHandler for the 
+	 * Returns the {@link DataMode} of the ClientHandler for the
 	 * DataType.
+	 *
 	 * @since 1.2
 	 */
 	public DataMode getDataMode(DataType dataType) {
-		if(dataType == DataType.IN)
+		if (dataType == DataType.IN)
 			return dataModeIN;
-		else if(dataType == DataType.OUT)
+		else if (dataType == DataType.OUT)
 			return dataModeOUT;
 		else
-			throw new IllegalArgumentException("Unknown DataType : " + 
-				dataType);
+			throw new IllegalArgumentException("Unknown DataType : " +
+					dataType);
 	}
 
 	/**
-	 * Returns the {@link java.sql.Connection} object for the 
+	 * Returns the {@link java.sql.Connection} object for the
 	 * DatabaseConnection that is identified by id passed. If id passed
 	 * does not match with any connection loaded by this class it will
 	 * return <code>null</code>.
 	 * This just calls <code>getServer().getDBPoolUtil().getConnection(id)</code>
+	 *
 	 * @since 1.3
 	 * @deprecated as of v1.4.5 use <code>getServer().getDBPoolUtil().getConnection(id)</code>
 	 */
 	public java.sql.Connection getConnection(String id) throws Exception {
-		if(getServer()==null)
-			throw new Exception("ClientHandler no longer is associated with any client! Try to use quickserver.getDBPoolUtil().getConnection("+id+")");
+		if (getServer() == null)
+			throw new Exception("ClientHandler no longer is associated with any client! Try to use quickserver.getDBPoolUtil().getConnection(" + id + ")");
 		return getServer().getDBPoolUtil().getConnection(id);
 	}
 
@@ -897,6 +960,7 @@ public abstract class BasicClientHandler implements ClientHandler {
 	 * Returns the date/time when the client socket was assigned to this
 	 * ClientHanlder. If no client is currently connected it will return
 	 * <code>null</code>
+	 *
 	 * @since 1.3.1
 	 */
 	public Date getClientConnectedTime() {
@@ -905,7 +969,8 @@ public abstract class BasicClientHandler implements ClientHandler {
 
 	/**
 	 * Read the byte input. This will block till some data is
-	 * received from the stream. 
+	 * received from the stream.
+	 *
 	 * @return The data as a String
 	 * @since 1.3.1
 	 */
@@ -913,20 +978,20 @@ public abstract class BasicClientHandler implements ClientHandler {
 
 	protected static byte[] readInputStream(InputStream _in) throws IOException {
 		byte data[] = null;
-		if(_in==null)
+		if (_in == null)
 			throw new IOException("InputStream can't be null!");
-		
+
 		int s = _in.read();
-		if(s==-1) {
+		if (s == -1) {
 			return null; //Connection lost
 		}
 		int alength = _in.available();
-		if(alength > 0) {
-			data = new byte[alength+1];	
+		if (alength > 0) {
+			data = new byte[alength + 1];
 			data[0] = (byte) s;
 			int len = _in.read(data, 1, alength);
-			if(len < alength) {
-				data = copyOf(data, len+1);
+			if (len < alength) {
+				data = copyOf(data, len + 1);
 			}
 		} else {
 			data = new byte[1];
@@ -934,7 +999,7 @@ public abstract class BasicClientHandler implements ClientHandler {
 		}
 		return data;
 	}
-	
+
 	private static byte[] copyOf(byte data[], int len) {
 		byte newdate[] = new byte[len];
 		System.arraycopy(data, 0, newdate, 0, len);
@@ -943,17 +1008,18 @@ public abstract class BasicClientHandler implements ClientHandler {
 
 	/**
 	 * Read the byte input. This will block till some data is
-	 * received from the stream. Allowed only when 
+	 * received from the stream. Allowed only when
 	 * <code>DataType.IN</code> is in <code>DataMode.BYTE</code> mode.
+	 *
 	 * @return The data as a String
 	 * @since 1.3.2
 	 */
 	public String readBytes() throws IOException {
-		if(dataModeIN != DataMode.BYTE)
-				throw new IllegalStateException("Can't read Byte: " + 
+		if (dataModeIN != DataMode.BYTE)
+			throw new IllegalStateException("Can't read Byte: " +
 					"DataType.IN is not in DataMode.BYTE");
 		byte data[] = readInputStream();
-		if(data!=null)
+		if (data != null)
 			return new String(data, charset);
 		else
 			return null;
@@ -961,14 +1027,17 @@ public abstract class BasicClientHandler implements ClientHandler {
 
 	/**
 	 * Sets the communication logging flag.
+	 *
 	 * @see #getCommunicationLogging
 	 * @since 1.3.2
 	 */
 	public void setCommunicationLogging(boolean communicationLogging) {
 		this.communicationLogging = communicationLogging;
 	}
+
 	/**
 	 * Returns the communication logging flag.
+	 *
 	 * @see #setCommunicationLogging
 	 * @since 1.3.2
 	 */
@@ -980,6 +1049,7 @@ public abstract class BasicClientHandler implements ClientHandler {
 	 * Returns the date/time when the client socket last sent a data to this
 	 * ClientHanlder. If no client is currently connected it will return
 	 * <code>null</code>
+	 *
 	 * @since 1.3.3
 	 */
 	public Date getLastCommunicationTime() {
@@ -988,6 +1058,7 @@ public abstract class BasicClientHandler implements ClientHandler {
 
 	/**
 	 * Updates the last communication time for this client
+	 *
 	 * @since 1.3.3
 	 */
 	public void updateLastCommunicationTime() {
@@ -996,36 +1067,39 @@ public abstract class BasicClientHandler implements ClientHandler {
 
 	/**
 	 * Force the closing of the client by closing the associated socket.
+	 *
 	 * @since 1.3.3
 	 */
 	public synchronized void forceClose() throws IOException {
-		if(getBlockingMode()==false) {
-			if(getSelectionKey()!=null) getSelectionKey().cancel();
-			if(getSocketChannel()!=null) {
+		if (getBlockingMode() == false) {
+			if (getSelectionKey() != null) getSelectionKey().cancel();
+			if (getSocketChannel() != null) {
 				getSocketChannel().close();
 				setSocketChannel(null);
 			}
 		}
-		if(getSocket()!=null) {
+		if (getSocket() != null) {
 			getSocket().close();
 			setSocket(null);
 		}
 	}
 
 	/**
-	 * Returns flag indicating if the client is connected in secure mode 
+	 * Returns flag indicating if the client is connected in secure mode
 	 * (SSL or TLS).
+	 *
 	 * @return secure flag
 	 * @since 1.4.0
-	 */ 
+	 */
 	public boolean isSecure() {
 		return secure;
 	}
 
 	/**
-	 * Sets flag indicating if the client is connected in secure mode 
+	 * Sets flag indicating if the client is connected in secure mode
 	 * (SSL or TLS).
- 	 * @param secure
+	 *
+	 * @param secure
 	 * @since 1.4.0
 	 */
 	public void setSecure(boolean secure) {
@@ -1033,23 +1107,25 @@ public abstract class BasicClientHandler implements ClientHandler {
 	}
 
 	/**
-	 * Updates the InputStream and OutputStream for the ClientHandler for the 
+	 * Updates the InputStream and OutputStream for the ClientHandler for the
 	 * set Socket.
-	 * @since 1.4.0
+	 *
 	 * @see #setSocket
+	 * @since 1.4.0
 	 */
 	public abstract void updateInputOutputStreams() throws IOException;
 
 	/**
-	 * Makes current Client connection to secure protocol based on the 
-	 * secure configuration set to the server. This method will just call 
+	 * Makes current Client connection to secure protocol based on the
+	 * secure configuration set to the server. This method will just call
 	 * <code>makeSecure(false, false, true, null)</code>.
+	 *
 	 * @throws IOException
 	 * @throws NoSuchAlgorithmException
 	 * @throws KeyManagementException
 	 * @since 1.4.0
 	 */
-	public void makeSecure() throws IOException, NoSuchAlgorithmException, 
+	public void makeSecure() throws IOException, NoSuchAlgorithmException,
 			KeyManagementException {
 		makeSecure(false, false, true, null);
 	}
@@ -1057,55 +1133,57 @@ public abstract class BasicClientHandler implements ClientHandler {
 	/**
 	 * Makes current Client connection to secure protocol.
 	 * This method will just call <code>makeSecure(false, false, true, protocol)</code>.
+	 *
 	 * @throws IOException
 	 * @throws NoSuchAlgorithmException
 	 * @throws KeyManagementException
 	 * @since 1.4.0
 	 */
-	public void makeSecure(String protocol) throws IOException, 
+	public void makeSecure(String protocol) throws IOException,
 			NoSuchAlgorithmException, KeyManagementException {
 		makeSecure(false, false, true, protocol);
 	}
 
 	/**
 	 * Makes current Client connection to secure protocol.
-	 * @param useClientMode falg if the socket should start its first handshake in "client" mode.
+	 *
+	 * @param useClientMode  falg if the socket should start its first handshake in "client" mode.
 	 * @param needClientAuth flag if the clients must authenticate themselves.
-	 * @param autoClose close the underlying socket when this socket is closed 
-	 * @param protocol the standard name of the requested protocol. If <code>null</code> will use the protocol set in secure configuration of the server.
+	 * @param autoClose      close the underlying socket when this socket is closed
+	 * @param protocol       the standard name of the requested protocol. If <code>null</code> will use the protocol set in secure configuration of the server.
 	 * @throws IOException
 	 * @throws NoSuchAlgorithmException
 	 * @throws KeyManagementException
 	 * @since 1.4.0
 	 */
-	public void makeSecure(boolean useClientMode, boolean needClientAuth, 
-			boolean autoClose, String protocol) throws IOException, 
+	public void makeSecure(boolean useClientMode, boolean needClientAuth,
+						   boolean autoClose, String protocol) throws IOException,
 			NoSuchAlgorithmException, KeyManagementException {
-		if(isSecure()==true) {
+		if (isSecure() == true) {
 			throw new IllegalStateException("Client is already in secure mode!");
 		}
-		
-		appLogger.log(Level.FINE, "Making secure - Protocol: {0}, Client: [{1}]", 
-			new Object[]{protocol, getHostAddress()});
+
+		appLogger.log(Level.FINE, "Making secure - Protocol: {0}, Client: [{1}]",
+				new Object[]{protocol, getHostAddress()});
 
 		javax.net.ssl.SSLSocketFactory sslSf = getServer().getSSLSocketFactory(protocol);
 		String host = getServer().getBindAddr().getHostAddress();
-		if(host.equals("0.0.0.0")) host = InetAddress.getLocalHost().getHostAddress();
+		if (host.equals("0.0.0.0")) host = InetAddress.getLocalHost().getHostAddress();
 		SSLSocket newSocket = (SSLSocket) sslSf.createSocket(
-			getSocket(), host, getServer().getPort(), autoClose);
+				getSocket(), host, getServer().getPort(), autoClose);
 		newSocket.setNeedClientAuth(needClientAuth);
 		newSocket.setUseClientMode(useClientMode);
 		setSocket(newSocket);
 		setSecure(true);
-		updateInputOutputStreams();		
+		updateInputOutputStreams();
 	}
 
 	/**
 	 * Send a binary data to the connected client.
 	 * If client is not connected it will just return.
+	 *
+	 * @throws IOException if Socket IO Error or Socket was closed by the client.
 	 * @since 1.4
-	 * @exception IOException
-	 *        if Socket IO Error or Socket was closed by the client.
 	 */
 	public void sendClientBinary(byte data[]) throws IOException {
 		sendClientBinary(data, 0, data.length);
@@ -1114,34 +1192,34 @@ public abstract class BasicClientHandler implements ClientHandler {
 	/**
 	 * Send a binary data to the connected client.
 	 * If client is not connected it will just return.
+	 *
+	 * @throws IOException if Socket IO Error or Socket was closed by the client.
 	 * @since 1.4.5
-	 * @exception IOException
-	 *        if Socket IO Error or Socket was closed by the client.
 	 */
 	public void sendClientBinary(byte data[], int off, int len) throws IOException {
-		if(isConnected()) {
-			if(dataModeOUT != DataMode.BINARY)
-				throw new IllegalStateException("Can't send Binary :" + 
-					"DataType.OUT is not in DataMode.BINARY");
-			if(getCommunicationLogging()) {				
-				if(getServer().isRawCommunicationLogging()) {
-					if(getServer().getRawCommunicationMaxLength()>0 && len>getServer().getRawCommunicationMaxLength()) {
-						appLogger.log(Level.FINE, 
-							"Sending [{0}] : {1}; RAW: {2}{3}", new Object[]{
-								getHostAddress(), MyString.getMemInfo(len), new String(
-							data,0,getServer().getRawCommunicationMaxLength(),charset),"..."});
+		if (isConnected()) {
+			if (dataModeOUT != DataMode.BINARY)
+				throw new IllegalStateException("Can't send Binary :" +
+						"DataType.OUT is not in DataMode.BINARY");
+			if (getCommunicationLogging()) {
+				if (getServer().isRawCommunicationLogging()) {
+					if (getServer().getRawCommunicationMaxLength() > 0 && len > getServer().getRawCommunicationMaxLength()) {
+						appLogger.log(Level.FINE,
+								"Sending [{0}] : {1}; RAW: {2}{3}", new Object[]{
+										getHostAddress(), MyString.getMemInfo(len), new String(
+										data, 0, getServer().getRawCommunicationMaxLength(), charset), "..."});
 					} else {
-						appLogger.log(Level.FINE, 
-							"Sending [{0}] : {1}; RAW: {2}", new Object[]{
-								getHostAddress(), MyString.getMemInfo(len), new String(data,charset)});
+						appLogger.log(Level.FINE,
+								"Sending [{0}] : {1}; RAW: {2}", new Object[]{
+										getHostAddress(), MyString.getMemInfo(len), new String(data, charset)});
 					}
 				} else {
-					appLogger.log(Level.FINE, 
-						"Sending [{0}] : {1}", new Object[]{getHostAddress(), MyString.getMemInfo(len)});
+					appLogger.log(Level.FINE,
+							"Sending [{0}] : {1}", new Object[]{getHostAddress(), MyString.getMemInfo(len)});
 				}
 			}
-			synchronized(this) {
-				b_out.write(data, off, len); 
+			synchronized (this) {
+				b_out.write(data, off, len);
 				b_out.flush();
 				totalWrittenBytes = totalWrittenBytes + len;
 			}
@@ -1153,32 +1231,35 @@ public abstract class BasicClientHandler implements ClientHandler {
 
 	/**
 	 * Read the binary input. This will block till some data is
-	 * received from the stream. Allowed only when 
+	 * received from the stream. Allowed only when
 	 * <code>DataType.IN</code> is in <code>DataMode.BINARY</code> mode.
+	 *
 	 * @return The data as a String
 	 * @since 1.4
 	 */
 	public byte[] readBinary() throws IOException {
-		if(dataModeIN != DataMode.BINARY)
-				throw new IllegalStateException("Can't read Binary :" + 
+		if (dataModeIN != DataMode.BINARY)
+			throw new IllegalStateException("Can't read Binary :" +
 					"DataType.IN is not in DataMode.BINARY");
 		byte data[] = readInputStream();
 		return data;
 	}
 
 	/**
-     * Sets the ClientBinaryHandler class that interacts with 
+	 * Sets the ClientBinaryHandler class that interacts with
 	 * client sockets.
-	 * @param handler fully qualified name of the class that 
-	 * implements {@link ClientBinaryHandler}
+	 *
+	 * @param handler fully qualified name of the class that
+	 *                implements {@link ClientBinaryHandler}
 	 * @since 1.4
-     */
+	 */
 	protected void setClientBinaryHandler(ClientBinaryHandler handler) {
-		clientBinaryHandler=handler;
+		clientBinaryHandler = handler;
 	}
 
-	/** 
-	 * Returns client SelectionKey associated, if any. 
+	/**
+	 * Returns client SelectionKey associated, if any.
+	 *
 	 * @since 1.4.5
 	 */
 	public Logger getAppLogger() {
@@ -1186,110 +1267,127 @@ public abstract class BasicClientHandler implements ClientHandler {
 	}
 
 	/**
-     * Sets the client socket's timeout.
+	 * Sets the client socket's timeout.
+	 *
 	 * @param time client socket timeout in milliseconds.
 	 * @see #getTimeout
 	 * @since 1.4.5
-     */
+	 */
 	public void setTimeout(int time) {
 		socketTimeout = time;
-	}	
+	}
+
 	/**
-     * Returns the Client socket timeout in milliseconds.
+	 * Returns the Client socket timeout in milliseconds.
+	 *
 	 * @see #setTimeout
 	 * @since 1.4.5
-     */
+	 */
 	public int getTimeout() {
 		return socketTimeout;
 	}
 
-	/** 
-	 * Checks if this client has the event. 
+	/**
+	 * Checks if this client has the event.
+	 *
 	 * @since 1.4.5
 	 */
 	public boolean hasEvent(ClientEvent event) {
-		synchronized(clientEvents) {
+		synchronized (clientEvents) {
 			return clientEvents.contains(event);
 		}
 	}
 
-	/** 
-	 * Adds the ClientEvent. 
+	/**
+	 * Adds the ClientEvent.
+	 *
 	 * @since 1.4.5
 	 */
 	public void addEvent(ClientEvent event) {
-		synchronized(clientEvents) {
+		synchronized (clientEvents) {
 			unprocessedClientEvents.add(event);
 			clientEvents.add(event);
 		}
 	}
 
-	/** 
-	 * Removes the ClientEvent. 
+	/**
+	 * Removes the ClientEvent.
+	 *
 	 * @since 1.4.5
 	 */
 	public void removeEvent(ClientEvent event) {
-		if(event==null) return;
+		if (event == null) return;
 
-		synchronized(clientEvents) {
+		synchronized (clientEvents) {
 			clientEvents.remove(event);
 		}
 
-		ClientEvent _clientEvent = (ClientEvent)threadEvent.get();
-		if(_clientEvent!=null && _clientEvent==event) {
+		ClientEvent _clientEvent = (ClientEvent) threadEvent.get();
+		if (_clientEvent != null && _clientEvent == event) {
 			threadEvent.set(null);
 		}
-		
+
 	}
 
-	/** 
-	 * Returns threads current event for this client. 
+	/**
+	 * Returns threads current event for this client.
+	 *
 	 * @since 1.4.5
 	 */
 	protected ClientEvent getThreadEvent() {
-		return (ClientEvent)threadEvent.get();
+		return (ClientEvent) threadEvent.get();
 	}
 
-	/** 
+	/**
 	 * Sets message to be displayed when maximum connection reaches.
+	 *
 	 * @since 1.4.5
 	 */
 	public void setMaxConnectionMsg(String msg) {
 		maxConnectionMsg = msg;
 	}
+
 	/**
-	 * Returns message to be displayed to the client when maximum 
+	 * Returns message to be displayed to the client when maximum
 	 * connection reaches.
+	 *
 	 * @since 1.4.5
 	 */
 	public String getMaxConnectionMsg() {
 		return maxConnectionMsg;
 	}
 
-	/** 
+	/**
 	 * Returns the current blocking mode of the server.
+	 *
 	 * @since 1.4.9
 	 */
 	public abstract boolean getBlockingMode();
 
-	/** 
-	 * Sets client socket channel associated, if any. 
+	/**
+	 * Sets client socket channel associated, if any.
+	 *
 	 * @since 1.4.5
 	 */
 	public abstract void setSocketChannel(SocketChannel socketChannel);
-	/** 
-	 * Returns client socket channel associated, if any. 
+
+	/**
+	 * Returns client socket channel associated, if any.
+	 *
 	 * @since 1.4.5
 	 */
 	public abstract SocketChannel getSocketChannel();
 
-	/** 
-	 * Sets client SelectionKey associated, if any. 
+	/**
+	 * Sets client SelectionKey associated, if any.
+	 *
 	 * @since 1.4.5
 	 */
 	public abstract void setSelectionKey(SelectionKey selectionKey);
-	/** 
-	 * Returns client SelectionKey associated, if any. 
+
+	/**
+	 * Returns client SelectionKey associated, if any.
+	 *
 	 * @since 1.4.5
 	 */
 	public abstract SelectionKey getSelectionKey();
@@ -1301,49 +1399,56 @@ public abstract class BasicClientHandler implements ClientHandler {
 	/**
 	 * Register OP_READ with the SelectionKey associated with the channel. If SelectionKey is
 	 * not set then it registers the channel with the Selector.
+	 *
 	 * @since 1.4.5
 	 */
-	public abstract void registerForRead() throws IOException, 
-		ClosedChannelException;
-	
-	/**
-	 * Register OP_WRITE with the SelectionKey associated with the channel.
-	 * @since 1.4.5
-	 */
-	public abstract void registerForWrite() throws IOException, 
-		ClosedChannelException;
+	public abstract void registerForRead() throws IOException,
+			ClosedChannelException;
 
 	/**
-     * Sets the ClientWriteHandler class that interacts with 
-	 * client sockets.
-	 * @param handler fully qualified name of the class that 
-	 * implements {@link ClientWriteHandler}
+	 * Register OP_WRITE with the SelectionKey associated with the channel.
+	 *
 	 * @since 1.4.5
-     */
+	 */
+	public abstract void registerForWrite() throws IOException,
+			ClosedChannelException;
+
+	/**
+	 * Sets the ClientWriteHandler class that interacts with
+	 * client sockets.
+	 *
+	 * @param handler fully qualified name of the class that
+	 *                implements {@link ClientWriteHandler}
+	 * @since 1.4.5
+	 */
 	protected abstract void setClientWriteHandler(ClientWriteHandler handler);
 
 	/**
-     * Sets the Charset to be used for String decoding and encoding.
+	 * Sets the Charset to be used for String decoding and encoding.
+	 *
 	 * @param charset to be used for String decoding and encoding
 	 * @see #getCharset
 	 * @since 1.4.5
-     */
+	 */
 	public void setCharset(String charset) {
-		if(charset==null || charset.trim().length()==0)
+		if (charset == null || charset.trim().length() == 0)
 			return;
 		this.charset = charset;
 	}
+
 	/**
-     * Returns Charset to be used for String decoding and encoding..
-     * @see #setCharset
+	 * Returns Charset to be used for String decoding and encoding..
+	 *
+	 * @see #setCharset
 	 * @since 1.4.5
-     */
+	 */
 	public String getCharset() {
 		return charset;
 	}
 
 	/**
 	 * Returns cached socket host ip address.
+	 *
 	 * @since 1.4.5
 	 */
 	public String getHostAddress() {
@@ -1354,29 +1459,31 @@ public abstract class BasicClientHandler implements ClientHandler {
 		logger.warning("[Assertions Was Enabled] Forcing program exit to help developer.");
 		org.quickserver.net.qsadmin.QSAdminShell.tryFullThreadDump();//it can help debug.
 		try {
-			Thread.sleep(100);	
-		} catch(InterruptedException e) {
-			logger.fine("Interrupted: "+e);
-		}		
+			Thread.sleep(100);
+		} catch (InterruptedException e) {
+			logger.fine("Interrupted: " + e);
+		}
 		System.exit(-1);
 	}
 
 	/**
-	 * Checks if the passed ClientEvent is the one next for 
+	 * Checks if the passed ClientEvent is the one next for
 	 * processing if a thread is allowed through this object.
+	 *
 	 * @since 1.4.6
 	 */
 	public boolean isClientEventNext(ClientEvent clientEvent) {
 		ClientEvent ce = null;
-		synchronized(clientEvents) {
-			ce = (ClientEvent) unprocessedClientEvents.peek();			
+		synchronized (clientEvents) {
+			ce = (ClientEvent) unprocessedClientEvents.peek();
 		}
 		return clientEvent == ce;
 	}
 
 	/**
-	 *Returns the {@link java.io.BufferedInputStream} associated with 
-	 * the Client being handled. Can be null if not available at the time of method call. 
+	 * Returns the {@link java.io.BufferedInputStream} associated with
+	 * the Client being handled. Can be null if not available at the time of method call.
+	 *
 	 * @see #getBufferedOutputStream
 	 * @since 1.4.6
 	 */
@@ -1385,8 +1492,9 @@ public abstract class BasicClientHandler implements ClientHandler {
 	}
 
 	/**
-	 * Returns the {@link java.io.BufferedOutputStream} associated with 
-	 * the Client being handled. Can be null if not available at the time of method call. 
+	 * Returns the {@link java.io.BufferedOutputStream} associated with
+	 * the Client being handled. Can be null if not available at the time of method call.
+	 *
 	 * @see #getBufferedInputStream
 	 * @since 1.4.6
 	 */
@@ -1400,43 +1508,46 @@ public abstract class BasicClientHandler implements ClientHandler {
 		appLogger.log(Level.FINEST, "SocketTimeoutException : {0}", e.getMessage());
 
 		String temp = null;
-		if(clientExtendedEventHandler!=null) {
+		if (clientExtendedEventHandler != null) {
 			clientExtendedEventHandler.handleTimeout(this);
 		} else {
 			temp = timeoutMsg;
-			if(dataModeOUT == DataMode.STRING)
+			if (dataModeOUT == DataMode.STRING)
 				temp = temp + NEW_LINE;
-			if(dataModeOUT != DataMode.OBJECT) {
+			if (dataModeOUT != DataMode.OBJECT) {
 				out.write(temp.getBytes(charset));
 				out.flush();
 			}
-			if(true) throw new SocketException("Timeout");
+			if (true) throw new SocketException("Timeout");
 		}
 	}
 
 	/**
 	 * Returns SSLEngine if in secure mode.
+	 *
 	 * @since 1.4.9
 	 */
 	public SSLEngine getSSLEngine() {
 		return sslEngine;
 	}
-	
-	
+
+
 	public int getTotalReadBytes() {
 		return totalReadBytes;
 	}
+
 	public int getTotalWrittenBytes() {
 		return totalWrittenBytes;
 	}
-	
+
 	public void resetTotalReadBytes() {
-		synchronized(this) {
+		synchronized (this) {
 			totalReadBytes = 0;
 		}
 	}
+
 	public void resetTotalWrittenBytes() {
-		synchronized(this) {
+		synchronized (this) {
 			totalWrittenBytes = 0;
 		}
 	}

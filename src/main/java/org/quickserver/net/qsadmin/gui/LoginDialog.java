@@ -1,10 +1,10 @@
 /*
- * This file is part of the QuickServer library 
+ * This file is part of the QuickServer library
  * Copyright (C) QuickServer.org
  *
  * Use, modification, copying and distribution of this software is subject to
- * the terms and conditions of the GNU Lesser General Public License. 
- * You should have received a copy of the GNU LGP License along with this 
+ * the terms and conditions of the GNU Lesser General Public License.
+ * You should have received a copy of the GNU LGP License along with this
  * library; if not, you can download a copy from <http://www.quickserver.org/>.
  *
  * For questions, suggestions, bug-reports, enhancement-requests etc.
@@ -14,22 +14,21 @@
 
 package org.quickserver.net.qsadmin.gui;
 
-import java.awt.*;
-import java.awt.event.*;
-import javax.swing.*;
-import javax.swing.event.*;
-import javax.swing.border.*;
-import java.io.IOException;
-
-import org.quickserver.util.TextFile;
 import org.quickserver.swing.JFrameUtilities;
+
+import javax.swing.*;
+import javax.swing.border.EtchedBorder;
+import java.awt.*;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
 
 /**
  * Login Dialog
  * QuickServer Admin GUI - QSAdminGUI
+ *
  * @author Akshathkumar Shetty
  */
-public class LoginDialog extends JDialog /*JFrame*/{
+public class LoginDialog extends JDialog /*JFrame*/ {
 	private JPanel topPanel;
 	private JPanel ipPanel;
 	private JPanel authPanel;
@@ -58,8 +57,8 @@ public class LoginDialog extends JDialog /*JFrame*/{
 	public LoginDialog(Frame parent) {
 		super(parent, "QSAdmin Login");
 		gbc = new GridBagConstraints();
-		productName = new JLabel(statusTxt1+
-			"QSAdmin Login"+statusTxt2,JLabel.CENTER);
+		productName = new JLabel(statusTxt1 +
+				"QSAdmin Login" + statusTxt2, JLabel.CENTER);
 
 		ipLabel = new JLabel("IP Address");
 		ipField = new JTextField("127.0.0.1");
@@ -71,72 +70,72 @@ public class LoginDialog extends JDialog /*JFrame*/{
 		passwordLabel = new JLabel("Password");
 		passwordField = new JPasswordField("QsAdm1n");
 
-		loginButton = new JButton("<html><font style=\"font-size:10pt;color:#535353\">"+
-			"<b>Login</b>"+"</font>");
+		loginButton = new JButton("<html><font style=\"font-size:10pt;color:#535353\">" +
+				"<b>Login</b>" + "</font>");
 		loginButton.setMnemonic('L');
-		cancelButton = new JButton("<html><font style=\"font-size:10pt;color:#535353\">"+
-			"<b>Cancel</b>"+"</font>");
+		cancelButton = new JButton("<html><font style=\"font-size:10pt;color:#535353\">" +
+				"<b>Cancel</b>" + "</font>");
 		cancelButton.setMnemonic('C');
-		cancelButton.addActionListener( new ActionListener() {
+		cancelButton.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
 				hide();
 			}
 		});
-		
+
 		//--- Action
 		ipField.addActionListener(new ActionListener() {
-				public void actionPerformed(ActionEvent e) {
-					portField.requestFocus();
-				}
-			});
+			public void actionPerformed(ActionEvent e) {
+				portField.requestFocus();
+			}
+		});
 		portField.addActionListener(new ActionListener() {
-				public void actionPerformed(ActionEvent e) {
-					loginField.requestFocus();
-				}
-			});
+			public void actionPerformed(ActionEvent e) {
+				loginField.requestFocus();
+			}
+		});
 		loginField.addActionListener(new ActionListener() {
-				public void actionPerformed(ActionEvent e) {
-					passwordField.requestFocus();
-				}
-			});
+			public void actionPerformed(ActionEvent e) {
+				passwordField.requestFocus();
+			}
+		});
 
 		ActionListener loginAl = new ActionListener() {
-			public void actionPerformed(ActionEvent e) {		
+			public void actionPerformed(ActionEvent e) {
 				isOk = false;
-				if(ipField.getText().equals("")) {
+				if (ipField.getText().equals("")) {
 					showError("Blank IP Address");
 					return;
 				}
-				if(portField.getText().equals("")) {
+				if (portField.getText().equals("")) {
 					showError("Blank Port Number");
 					return;
 				} else {
 					try {
 						Integer.parseInt(portField.getText());
-					} catch(Exception ex) {
+					} catch (Exception ex) {
 						showError("Bad Port Number.");
 						return;
 					}
 				}
-				if(loginField.getText().equals("")) {
+				if (loginField.getText().equals("")) {
 					showError("Blank Login");
 					return;
 				}
 				char p[] = passwordField.getPassword();
-				if(p==null || p.length==0) {
+				if (p == null || p.length == 0) {
 					showError("Blank password");
 					return;
 				}
 				p = null;
 				hide();
-				isOk = true;					
+				isOk = true;
 			}
 		};
 
 		loginButton.addActionListener(loginAl);
 		passwordField.addActionListener(loginAl);
 
-		cancelButton.addActionListener( new ActionListener() {
+		cancelButton.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
 				hide();
 				isOk = false;
@@ -149,7 +148,7 @@ public class LoginDialog extends JDialog /*JFrame*/{
 		//--- Top Panel
 		topPanel = new JPanel();
 		topPanel.setLayout(new GridBagLayout());
-		gbc.insets = new Insets( 2, 2, 2, 2 );
+		gbc.insets = new Insets(2, 2, 2, 2);
 		gbc.weighty = 0.0;
 		gbc.weightx = 0.0;
 		gbc.gridx = 0;
@@ -191,7 +190,7 @@ public class LoginDialog extends JDialog /*JFrame*/{
 		gbc.fill = GridBagConstraints.BOTH;
 		ipPanel.add(portField, gbc);
 		ipPanel.setBorder(BorderFactory.createTitledBorder(
-			new EtchedBorder(),"Location"));
+				new EtchedBorder(), "Location"));
 
 		//-- Login Panel
 		authPanel = new JPanel();
@@ -224,7 +223,7 @@ public class LoginDialog extends JDialog /*JFrame*/{
 		gbc.fill = GridBagConstraints.BOTH;
 		authPanel.add(passwordField, gbc);
 		authPanel.setBorder(BorderFactory.createTitledBorder(
-			new EtchedBorder(),"Authentication"));
+				new EtchedBorder(), "Authentication"));
 
 		//-- buttonPanel
 		buttonPanel = new JPanel();
@@ -251,18 +250,18 @@ public class LoginDialog extends JDialog /*JFrame*/{
 		gbc.gridwidth = 1;
 		gbc.anchor = GridBagConstraints.CENTER;
 		gbc.fill = GridBagConstraints.HORIZONTAL;
-		cp.add(topPanel,gbc);
+		cp.add(topPanel, gbc);
 		gbc.fill = GridBagConstraints.BOTH;
 		gbc.gridy = 1;
-		cp.add(ipPanel,gbc);
+		cp.add(ipPanel, gbc);
 		gbc.fill = GridBagConstraints.BOTH;
 		gbc.gridy = 2;
-		cp.add(authPanel,gbc);
+		cp.add(authPanel, gbc);
 		gbc.fill = GridBagConstraints.HORIZONTAL;
 		gbc.gridy = 3;
-		cp.add(buttonPanel,gbc);
+		cp.add(buttonPanel, gbc);
 		pack();
-		setSize(240,250);
+		setSize(240, 250);
 		setResizable(false);
 		setModal(true);
 		JFrameUtilities.centerWindow(this);
@@ -270,10 +269,10 @@ public class LoginDialog extends JDialog /*JFrame*/{
 
 	private void showError(String msg) {
 		JOptionPane.showMessageDialog(LoginDialog.this,
-			msg, "Error", JOptionPane.ERROR_MESSAGE);
+				msg, "Error", JOptionPane.ERROR_MESSAGE);
 	}
 
-	public String[] getValues(){
+	public String[] getValues() {
 		values[0] = ipField.getText();
 		values[1] = portField.getText();
 		values[2] = loginField.getText();
@@ -281,7 +280,7 @@ public class LoginDialog extends JDialog /*JFrame*/{
 		return values;
 	}
 
-	public boolean isOk(){
+	public boolean isOk() {
 		return isOk;
 	}
 }

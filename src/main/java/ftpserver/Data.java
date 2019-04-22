@@ -1,10 +1,10 @@
 /*
- * This file is part of the QuickServer library 
+ * This file is part of the QuickServer library
  * Copyright (C) 2003-2005 QuickServer.org
  *
  * Use, modification, copying and distribution of this software is subject to
- * the terms and conditions of the GNU Lesser General Public License. 
- * You should have received a copy of the GNU LGP License along with this 
+ * the terms and conditions of the GNU Lesser General Public License.
+ * You should have received a copy of the GNU LGP License along with this
  * library; if not, you can download a copy from <http://www.quickserver.org/>.
  *
  * For questions, suggestions, bug-reports, enhancement-requests etc.
@@ -14,20 +14,21 @@
 
 package ftpserver;
 
-import org.quickserver.net.*;
-import org.quickserver.net.server.*;
-
+import org.apache.commons.pool.BasePoolableObjectFactory;
+import org.apache.commons.pool.PoolableObjectFactory;
+import org.quickserver.net.server.ClientData;
 import org.quickserver.util.pool.PoolableObject;
-import org.apache.commons.pool.BasePoolableObjectFactory; 
-import org.apache.commons.pool.PoolableObjectFactory; 
 
-import java.io.*;
-import java.net.*;
+import java.io.BufferedOutputStream;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.net.ServerSocket;
+import java.net.Socket;
 import java.util.logging.Logger;
 
 public class Data implements ClientData, PoolableObject {
-	private static Logger logger = 
-		Logger.getLogger(Data.class.getName());
+	private static Logger logger =
+			Logger.getLogger(Data.class.getName());
 	boolean isTransferring = false;
 	boolean isRenameFrom = false;
 	boolean isStop = false;
@@ -59,10 +60,10 @@ public class Data implements ClientData, PoolableObject {
 
 	public void sendFile(String file) throws Exception {
 		isStop = false;
-		if(socket==null)
+		if (socket == null)
 			throw new IOException("No client connected");
 		String input = "";
-		int i=0;
+		int i = 0;
 		FileInputStream fin = null;
 		BufferedOutputStream out = null;
 		try {
@@ -83,35 +84,35 @@ public class Data implements ClientData, PoolableObject {
 			} else {
 				
 			}*/
-			while(true) {
+			while (true) {
 				i = fin.read();
-				if(i==-1 || isStop==true) //if aborted
+				if (i == -1 || isStop == true) //if aborted
 					break;
 				out.write(i);
 			}
 			out.flush();
-		}catch (Exception e){
+		} catch (Exception e) {
 			throw e;
 		} finally {
-			if(fin!=null)
+			if (fin != null)
 				fin.close();
 		}
 	}
 
 	public void sendData(String sdata) throws Exception {
 		//System.out.print("Sending data on datacon ");
-		if(socket==null) {
+		if (socket == null) {
 			Thread.currentThread().sleep(500);
-			if(socket==null) {
+			if (socket == null) {
 				throw new IOException("No client connected");
 			}
 		}
 		BufferedOutputStream out = null;
 		try {
 			out = new BufferedOutputStream(socket.getOutputStream());
-			out.write( sdata.getBytes(),0,sdata.length() );
+			out.write(sdata.getBytes(), 0, sdata.length());
 			out.flush();
-		}catch (Exception e){
+		} catch (Exception e) {
 			throw e;
 		}
 	}
@@ -141,7 +142,7 @@ public class Data implements ClientData, PoolableObject {
 		account = null;
 		username = "";
 		binary = false;
-		type = 'A'; 
+		type = 'A';
 		typeSub = 'N';
 		mode = "Stream";
 		structure = "File";
@@ -152,21 +153,24 @@ public class Data implements ClientData, PoolableObject {
 	}
 
 	public PoolableObjectFactory getPoolableObjectFactory() {
-		return  new BasePoolableObjectFactory() {
-			public Object makeObject() { 
+		return new BasePoolableObjectFactory() {
+			public Object makeObject() {
 				return new Data();
-			} 
+			}
+
 			public void passivateObject(Object obj) {
-				Data ed = (Data)obj;
+				Data ed = (Data) obj;
 				ed.clean();
-			} 
+			}
+
 			public void destroyObject(Object obj) {
-				if(obj==null) return;
+				if (obj == null) return;
 				passivateObject(obj);
 				obj = null;
 			}
+
 			public boolean validateObject(Object obj) {
-				if(obj==null) 
+				if (obj == null)
 					return false;
 				else
 					return true;
@@ -176,11 +180,12 @@ public class Data implements ClientData, PoolableObject {
 }
 
 class DataServer extends Thread {
-	private static Logger logger = 
-		Logger.getLogger(DataServer.class.getName());
-	
-	ServerSocket acceptSocket=null;
+	private static Logger logger =
+			Logger.getLogger(DataServer.class.getName());
+
+	ServerSocket acceptSocket = null;
 	ftpserver.Data data = null;
+
 	public DataServer(ServerSocket acceptSocket, ftpserver.Data data) {
 		super("DataServer");
 		this.acceptSocket = acceptSocket;
@@ -195,29 +200,29 @@ class DataServer extends Thread {
 			data.closeDataServer = false;
 			data.socket = acceptSocket.accept();
 			logger.fine("Data con opened.");
-			while(data!=null && data.closeDataServer == false 
-				&& data.isStop==false ) {
+			while (data != null && data.closeDataServer == false
+					&& data.isStop == false) {
 				Thread.sleep(300);
 			}
-			if(data.socket!=null) {
+			if (data.socket != null) {
 				data.socket.close();
 			}
-		} catch(IOException e) {
-			System.err.println("Error at dataServer :"+e);
-		} catch(InterruptedException e) {
-			System.err.println("Thread Error at dataServer :"+e);
+		} catch (IOException e) {
+			System.err.println("Error at dataServer :" + e);
+		} catch (InterruptedException e) {
+			System.err.println("Thread Error at dataServer :" + e);
 		} finally {
 			try {
 				acceptSocket.close();
-			}catch(Exception re){
-				System.err.println("BAD Error at dataServer :"+re);
+			} catch (Exception re) {
+				System.err.println("BAD Error at dataServer :" + re);
 			}
 		}
 		data.socket = null;
 		data.server = null;
 	}
 
-	
+
 }
 
 

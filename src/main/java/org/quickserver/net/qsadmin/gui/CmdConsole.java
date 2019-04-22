@@ -1,10 +1,10 @@
 /*
- * This file is part of the QuickServer library 
+ * This file is part of the QuickServer library
  * Copyright (C) QuickServer.org
  *
  * Use, modification, copying and distribution of this software is subject to
- * the terms and conditions of the GNU Lesser General Public License. 
- * You should have received a copy of the GNU LGP License along with this 
+ * the terms and conditions of the GNU Lesser General Public License.
+ * You should have received a copy of the GNU LGP License along with this
  * library; if not, you can download a copy from <http://www.quickserver.org/>.
  *
  * For questions, suggestions, bug-reports, enhancement-requests etc.
@@ -14,15 +14,18 @@
 
 package org.quickserver.net.qsadmin.gui;
 
-import java.awt.*;
-import java.awt.event.*;
 import javax.swing.*;
-import javax.swing.event.*;
-import javax.swing.border.*;
+import javax.swing.border.Border;
+import javax.swing.border.CompoundBorder;
+import javax.swing.border.EtchedBorder;
+import java.awt.*;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
 import java.io.*;
 
 /**
  * Command Console
+ *
  * @author Akshathkumar Shetty
  */
 public class CmdConsole extends JPanel {
@@ -36,16 +39,16 @@ public class CmdConsole extends JPanel {
 
 	private JLabel convLabel = new JLabel("Conversation with host");
 	private Border connectedBorder = BorderFactory.createTitledBorder(
-		new EtchedBorder(), "Connected To < NONE >");
+			new EtchedBorder(), "Connected To < NONE >");
 	private JTextArea messagesField = new JTextArea();
-	
+
 	private JLabel sendLabel = new JLabel("Message");
 	private JTextField sendField = new JTextField();
-	
+
 	private JButton sendButton = new JButton("Send");
 	private JButton saveButton = new JButton("Save");
 	private JButton clearButton = new JButton("Clear");
-	
+
 	private GridBagConstraints gbc = new GridBagConstraints();
 
 	public CmdConsole(QSAdminMain qsadminMain) {
@@ -53,14 +56,14 @@ public class CmdConsole extends JPanel {
 		this.qsadminMain = qsadminMain;
 
 		textPanel = new JPanel();
-		textPanel.setLayout(new BorderLayout(0,5));
-		textPanel.add(convLabel,BorderLayout.NORTH);
+		textPanel.setLayout(new BorderLayout(0, 5));
+		textPanel.add(convLabel, BorderLayout.NORTH);
 		messagesField.setEditable(false);
 		messagesField.setBackground(Color.BLACK);
 		messagesField.setForeground(Color.GREEN);
 		JScrollPane jsp = new JScrollPane(messagesField);
 		textPanel.add(jsp);
-		textPanel.setBorder(BorderFactory.createEmptyBorder(3,3,0,3));
+		textPanel.setBorder(BorderFactory.createEmptyBorder(3, 3, 0, 3));
 
 		sendPanel = new JPanel();
 		sendPanel.setLayout(new GridBagLayout());
@@ -86,13 +89,13 @@ public class CmdConsole extends JPanel {
 		ActionListener sendListener = new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
 				String msg = sendField.getText();
-				if(!msg.equals(""))
+				if (!msg.equals(""))
 					sendMessage(msg);
 				else {
 					int value = JOptionPane.showConfirmDialog(
-						CmdConsole.this,  "Send Blank Line ?",
-						"Send Data To Server",
-						JOptionPane.YES_NO_OPTION);
+							CmdConsole.this, "Send Blank Line ?",
+							"Send Data To Server",
+							JOptionPane.YES_NO_OPTION);
 					if (value == JOptionPane.YES_OPTION)
 						sendMessage(msg);
 				}
@@ -102,9 +105,9 @@ public class CmdConsole extends JPanel {
 		sendField.addActionListener(sendListener);
 		sendPanel.add(sendButton, gbc);
 		sendPanel.setBorder(
-			new CompoundBorder(
-				BorderFactory.createEmptyBorder(0,0,0,3),
-				BorderFactory.createTitledBorder("Send")));
+				new CompoundBorder(
+						BorderFactory.createEmptyBorder(0, 0, 0, 3),
+						BorderFactory.createTitledBorder("Send")));
 
 		buttonPanel = new JPanel();
 		buttonPanel.setLayout(new GridBagLayout());
@@ -127,26 +130,25 @@ public class CmdConsole extends JPanel {
 		ActionListener saveListener = new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
 				String text = messagesField.getText();
-				if(text.equals("")) {
-					error("Nothing to save","Save to file");
+				if (text.equals("")) {
+					error("Nothing to save", "Save to file");
 					return;
 				}
-				String fileName="";
+				String fileName = "";
 				JFileChooser chooser = new JFileChooser();
 				chooser.setCurrentDirectory(new File("."));
 				int returnVal = chooser.showSaveDialog(CmdConsole.this);
-				if(returnVal == JFileChooser.APPROVE_OPTION) {
-				   fileName=chooser.getSelectedFile().getAbsolutePath();
-				   try {
-						writeFile(fileName,text);	
-				   }
-				   catch (Exception ioe) {
-					   JOptionPane.showMessageDialog(CmdConsole.this,
-						   ""+ioe.getMessage(),
-						   "Error saving to file..",
-						   JOptionPane.ERROR_MESSAGE);
-				   }				   
-				}				
+				if (returnVal == JFileChooser.APPROVE_OPTION) {
+					fileName = chooser.getSelectedFile().getAbsolutePath();
+					try {
+						writeFile(fileName, text);
+					} catch (Exception ioe) {
+						JOptionPane.showMessageDialog(CmdConsole.this,
+								"" + ioe.getMessage(),
+								"Error saving to file..",
+								JOptionPane.ERROR_MESSAGE);
+					}
+				}
 			}
 		};
 		saveButton.addActionListener(saveListener);
@@ -161,52 +163,52 @@ public class CmdConsole extends JPanel {
 		};
 		clearButton.addActionListener(clearListener);
 		buttonPanel.add(clearButton, gbc);
-		buttonPanel.setBorder(BorderFactory.createEmptyBorder(3,0,0,3));
+		buttonPanel.setBorder(BorderFactory.createEmptyBorder(3, 0, 0, 3));
 
 		centerPanel = new JPanel();
-		centerPanel.setLayout(new BorderLayout(0,0));
-		centerPanel.add(buttonPanel,BorderLayout.SOUTH);
-		centerPanel.add(textPanel,BorderLayout.CENTER);
+		centerPanel.setLayout(new BorderLayout(0, 0));
+		centerPanel.add(buttonPanel, BorderLayout.SOUTH);
+		centerPanel.add(textPanel, BorderLayout.CENTER);
 
-		CompoundBorder cb=new CompoundBorder(
-			BorderFactory.createEmptyBorder(5,10,10,10),
-			connectedBorder);
+		CompoundBorder cb = new CompoundBorder(
+				BorderFactory.createEmptyBorder(5, 10, 10, 10),
+				connectedBorder);
 		centerPanel.setBorder(cb);
 
 		cp.setLayout(new BorderLayout());
-		cp.add(centerPanel,BorderLayout.CENTER);
+		cp.add(centerPanel, BorderLayout.CENTER);
 	}
 
 	public void append(String msg) {
 		setSendEdit(qsadminMain.isConnected());
-		messagesField.append(msg+NEW_LINE);
+		messagesField.append(msg + NEW_LINE);
 		messagesField.setCaretPosition(messagesField.getText().length());
 	}
 
 	public void sendMessage(String s) {
 		setCursor(Cursor.getPredefinedCursor(Cursor.WAIT_CURSOR));
-		try	{
+		try {
 			qsadminMain.sendCommand(s, true);
 			sendField.setText("");
 			setCursor(Cursor.getPredefinedCursor(Cursor.DEFAULT_CURSOR));
 		} catch (Exception e) {
 			setCursor(Cursor.getPredefinedCursor(Cursor.DEFAULT_CURSOR));
 			JOptionPane.showMessageDialog(CmdConsole.this,
-				e.getMessage(),"Error Sending Message", 
-				JOptionPane.ERROR_MESSAGE);
+					e.getMessage(), "Error Sending Message",
+					JOptionPane.ERROR_MESSAGE);
 		}
 	}
 
 	private void changeBorder(String ip) {
-		if(ip==null || ip.equals(""))
+		if (ip == null || ip.equals(""))
 			connectedBorder = BorderFactory.createTitledBorder(
-				new EtchedBorder(), "Connected To < NONE >");
+					new EtchedBorder(), "Connected To < NONE >");
 		else
 			connectedBorder = BorderFactory.createTitledBorder(
-				new EtchedBorder(), "Connected To < "+ip+" >");
-		CompoundBorder cb=new CompoundBorder(
-			BorderFactory.createEmptyBorder(5,10,10,10),
-			connectedBorder);
+					new EtchedBorder(), "Connected To < " + ip + " >");
+		CompoundBorder cb = new CompoundBorder(
+				BorderFactory.createEmptyBorder(5, 10, 10, 10),
+				connectedBorder);
 		centerPanel.setBorder(cb);
 		invalidate();
 		repaint();
@@ -215,24 +217,25 @@ public class CmdConsole extends JPanel {
 	public void error(String error) {
 		error(error, null);
 	}
+
 	public void error(String error, String heading) {
-		if(error==null || error.equals(""))
+		if (error == null || error.equals(""))
 			return;
-		if(heading==null)
+		if (heading == null)
 			heading = "Error";
 		JOptionPane.showMessageDialog(CmdConsole.this,
-			   error, heading, JOptionPane.ERROR_MESSAGE);
+				error, heading, JOptionPane.ERROR_MESSAGE);
 	}
-	
-	public static void writeFile(String fileName, String text) 
-		throws IOException {
+
+	public static void writeFile(String fileName, String text)
+			throws IOException {
 		PrintWriter out = null;
 		try {
 			out = new PrintWriter(
-				new BufferedWriter(new FileWriter(fileName)));
-			out.print(text);	
+					new BufferedWriter(new FileWriter(fileName)));
+			out.print(text);
 		} finally {
-			if(out!=null) out.close();
+			if (out != null) out.close();
 		}
 	}
 
@@ -242,7 +245,7 @@ public class CmdConsole extends JPanel {
 	}
 
 	public void updateConnectionStatus(boolean connected) {
-		if(connected==false) {
+		if (connected == false) {
 			changeBorder(null);
 		} else {
 			changeBorder(qsadminMain.getIpAddress());

@@ -1,10 +1,10 @@
 /*
- * This file is part of the QuickServer library 
+ * This file is part of the QuickServer library
  * Copyright (C) 2003-2005 QuickServer.org
  *
  * Use, modification, copying and distribution of this software is subject to
- * the terms and conditions of the GNU Lesser General Public License. 
- * You should have received a copy of the GNU LGP License along with this 
+ * the terms and conditions of the GNU Lesser General Public License.
+ * You should have received a copy of the GNU LGP License along with this
  * library; if not, you can download a copy from <http://www.quickserver.org/>.
  *
  * For questions, suggestions, bug-reports, enhancement-requests etc.
@@ -13,9 +13,10 @@
  */
 package echoserver;
 
-import java.net.*;
 import java.io.*;
-import java.util.*;
+import java.net.InetAddress;
+import java.net.Socket;
+import java.util.Random;
 
 // Client that tests the EchoServer for all valid requests
 class MyTestClientThread extends Thread {
@@ -34,7 +35,7 @@ class MyTestClientThread extends Thread {
 	String send[] = {"UserPASS", "UserPASS", "Hello", "World", "Hi", "Last"};
 	String expectedFL[] = {"Bye ;-)"};
 	String expected[] = {"User Name :", "Password :", "Auth OK",
-		"Echo : Hello", "Echo : World", "Echo : Hi", "Echo : Last"};
+			"Echo : Hello", "Echo : World", "Echo : Hi", "Echo : Last"};
 
 	private String getJunk() {
 		StringBuffer sb = new StringBuffer();
@@ -265,10 +266,10 @@ public class TestEchoServer {
 		System.out.println("Client Sleep Time: " + MyTestClientThread.clientJunkSleep);
 		System.out.println("=======================");
 
-		
+
 		new MyTestClientThread(addr, port);
 
-		while (true) {			
+		while (true) {
 			while (MyTestClientThread.threadCount() < MAX_THREADS) {
 				new MyTestClientThread(addr, port);
 			}
@@ -279,8 +280,8 @@ public class TestEchoServer {
 
 	private static int getSleepTime() {
 		int i = random.nextInt(100) + (random.nextInt(20) + 1) * 200 - random.nextInt(50);
-		if(i<=0) {
-			i=1;
+		if (i <= 0) {
+			i = 1;
 		}
 		return i;
 	}

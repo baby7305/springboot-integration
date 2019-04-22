@@ -1,10 +1,10 @@
 /*
- * This file is part of the QuickServer library 
+ * This file is part of the QuickServer library
  * Copyright (C) QuickServer.org
  *
  * Use, modification, copying and distribution of this software is subject to
- * the terms and conditions of the GNU Lesser General Public License. 
- * You should have received a copy of the GNU LGP License along with this 
+ * the terms and conditions of the GNU Lesser General Public License.
+ * You should have received a copy of the GNU LGP License along with this
  * library; if not, you can download a copy from <http://www.quickserver.org/>.
  *
  * For questions, suggestions, bug-reports, enhancement-requests etc.
@@ -14,19 +14,22 @@
 
 package org.quickserver.util.pool;
 
+import org.apache.commons.pool.PoolableObjectFactory;
+
 import java.util.*;
 import java.util.concurrent.atomic.AtomicLong;
-import org.apache.commons.pool.*;
-import java.util.logging.*;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  * This class will maintain a simple pool of object instances.
  * It internally used a <code>HashSet</code>
+ *
  * @author Akshathkumar Shetty
  * @since 1.3
  */
 public class BasicObjectPool implements QSObjectPool {
-	private static final Logger logger = 
+	private static final Logger logger =
 			Logger.getLogger(BasicObjectPool.class.getName());
 
 	private PoolableObjectFactory factory;
@@ -41,57 +44,62 @@ public class BasicObjectPool implements QSObjectPool {
 		idleObjects = Collections.synchronizedSet(new HashSet());
 		config = new Config();
 	}
-	public BasicObjectPool(PoolableObjectFactory factory, 
-			BasicObjectPool.Config config) {
+
+	public BasicObjectPool(PoolableObjectFactory factory,
+						   BasicObjectPool.Config config) {
 		this();
 		this.factory = factory;
-		if(config!=null) this.config = config;
+		if (config != null) this.config = config;
 	}
 
 	public void addObject() throws Exception {
-		if(config.maxIdle==-1 || config.maxIdle > getNumIdle()) 
+		if (config.maxIdle == -1 || config.maxIdle > getNumIdle())
 			idleObjects.add(factory.makeObject());
 		else
 			maintain();
 	}
-	
+
 	public Object borrowObject() throws Exception {
-		if(getNumIdle()<=0 && 
-			(config.maxActive==-1 || config.maxActive > getNumActive()) ) {
+		if (getNumIdle() <= 0 &&
+				(config.maxActive == -1 || config.maxActive > getNumActive())) {
 			addObject();
 		}
-		if(getNumIdle()<=0) {
-			throw new NoSuchElementException("No free objects! MaxActive:"+
-				config.maxActive+", NumActive:"+getNumActive());
+		if (getNumIdle() <= 0) {
+			throw new NoSuchElementException("No free objects! MaxActive:" +
+					config.maxActive + ", NumActive:" + getNumActive());
 		}
-		
+
 		Object obj = null;
-		synchronized(this) {
+		synchronized (this) {
 			obj = idleObjects.iterator().next();
 			idleObjects.remove(obj);
 			factory.activateObject(obj);
 			activeObjects.add(obj);
 		}
-		if(getHighestActiveCount() < activeCount.incrementAndGet()) {
+		if (getHighestActiveCount() < activeCount.incrementAndGet()) {
 			setHighestActiveCount(activeCount.get());
 		}
 		return obj;
 	}
 
-	/**Clears any objects sitting idle in the pool*/
+	/**
+	 * Clears any objects sitting idle in the pool
+	 */
 	public synchronized void clear() {
 		Iterator iterator = idleObjects.iterator();
-		while(iterator.hasNext()) {
-			try	{
-				invalidateObject(iterator.next());	
-			} catch(Exception e) {
-				logger.warning("Error in BasicObjectPool.clear : "+e);
-			}			
+		while (iterator.hasNext()) {
+			try {
+				invalidateObject(iterator.next());
+			} catch (Exception e) {
+				logger.warning("Error in BasicObjectPool.clear : " + e);
+			}
 		}
 		idleObjects.clear();
 	}
 
-	/**Close this pool, and free any resources associated with it.*/
+	/**
+	 * Close this pool, and free any resources associated with it.
+	 */
 	public void close() throws Exception {
 		clear();
 		/*
@@ -107,55 +115,66 @@ public class BasicObjectPool implements QSObjectPool {
 		activeObjects.clear();
 	}
 
-	/**Return the number of instances currently borrowed from my pool */
+	/**
+	 * Return the number of instances currently borrowed from my pool
+	 */
 	public int getNumActive() {
 		return activeObjects.size();
 	}
-	/**Return the number of instances currently idle in my pool */
+
+	/**
+	 * Return the number of instances currently idle in my pool
+	 */
 	public int getNumIdle() {
 		return idleObjects.size();
 	}
-	
-	/**Invalidates an object from the pool */
+
+	/**
+	 * Invalidates an object from the pool
+	 */
 	public void invalidateObject(Object obj) throws Exception {
 		factory.destroyObject(obj);
 	}
 
-	/**Return an instance to my pool*/
+	/**
+	 * Return an instance to my pool
+	 */
 	public synchronized void returnObject(Object obj) throws Exception {
-		if(activeObjects.remove(obj)) {
+		if (activeObjects.remove(obj)) {
 			activeCount.decrementAndGet();
 		}
-		if(factory.validateObject(obj)==false) {
+		if (factory.validateObject(obj) == false) {
 			logger.log(Level.FINER, "Object not good for return: {0}", obj);
 			return;
 		}
 		factory.passivateObject(obj);
 		idleObjects.add(obj);
-		if(config.maxIdle!=-1 && config.maxIdle < getNumIdle()) {
+		if (config.maxIdle != -1 && config.maxIdle < getNumIdle()) {
 			maintain();
 		}
 	}
-	
-	/**Sets the factory I use to create new instances */
+
+	/**
+	 * Sets the factory I use to create new instances
+	 */
 	public void setFactory(PoolableObjectFactory factory) {
 		this.factory = factory;
 	}
 
 	private void maintain() {
-		if(inMaintain==true) {
+		if (inMaintain == true) {
 			return;
 		}
 		inMaintain = true;
 		logger.log(Level.FINEST, "Starting maintain: {0}", getNumIdle());
-		while(getNumIdle()>config.maxIdle) {
+		while (getNumIdle() > config.maxIdle) {
 			try {
-				synchronized(idleObjects) {
+				synchronized (idleObjects) {
 					Object obj = idleObjects.iterator().next();
 					idleObjects.remove(obj);
 					invalidateObject(obj);
 				}
-			} catch(Exception e) {
+			} catch (Exception e) {
 				logger.log(Level.WARNING, "Error in BasicObjectPool.maintain : {0}", e);
 			}
 		}
@@ -170,6 +189,7 @@ public class BasicObjectPool implements QSObjectPool {
 
 	/**
 	 * Returns the iterator of all active objects
+	 *
 	 * @since 1.3.1
 	 */
 	public Iterator getAllActiveObjects() {
@@ -181,7 +201,7 @@ public class BasicObjectPool implements QSObjectPool {
 	public Object getObjectToSynchronize() {
 		return activeObjects;
 	}
-	
+
 	/**
 	 * @return the highestActiveCount
 	 */

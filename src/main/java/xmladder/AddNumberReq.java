@@ -1,10 +1,10 @@
 /*
- * This file is part of the QuickServer library 
+ * This file is part of the QuickServer library
  * Copyright (C) QuickServer.org
  *
  * Use, modification, copying and distribution of this software is subject to
- * the terms and conditions of the GNU Lesser General Public License. 
- * You should have received a copy of the GNU LGP License along with this 
+ * the terms and conditions of the GNU Lesser General Public License.
+ * You should have received a copy of the GNU LGP License along with this
  * library; if not, you can download a copy from <http://www.quickserver.org/>.
  *
  * For questions, suggestions, bug-reports, enhancement-requests etc.
@@ -14,9 +14,12 @@
 
 package xmladder;
 
-import java.util.logging.*;
-import java.io.*;
 import org.apache.commons.digester3.Digester;
+
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /*
 	<add-number-req>
@@ -32,16 +35,16 @@ public class AddNumberReq {
 	static {
 		performanceTest = Boolean.getBoolean("xmladder.AddNumberReq.performanceTest");
 	}
-	
+
 	private static Digester getDigester() {
 		Digester _digester = new Digester();
 		_digester.setValidating(false);
 		_digester.setUseContextClassLoader(true);
 		String mainTag = "add-number-req";
 		_digester.addObjectCreate(mainTag, AddNumberReq.class);
-		_digester.addBeanPropertySetter(mainTag+"/number-a", "numberA");
-		_digester.addBeanPropertySetter(mainTag+"/number-b", "numberB");
-		
+		_digester.addBeanPropertySetter(mainTag + "/number-a", "numberA");
+		_digester.addBeanPropertySetter(mainTag + "/number-b", "numberB");
+
 		return _digester;
 	}
 
@@ -85,14 +88,14 @@ public class AddNumberReq {
 		return sb.toString();
 	}
 
-	public static AddNumberReq fromXML(String data) 
+	public static AddNumberReq fromXML(String data)
 			throws IOException, org.xml.sax.SAXException {
 		AddNumberReq addNumberReq = null;
-		if(performanceTest==false) {
+		if (performanceTest == false) {
 			logger.log(Level.FINE, "Got xml:\n{0}", data);
-			
+
 			addNumberReq = (AddNumberReq) getDigester().parse(
-				new ByteArrayInputStream(data.getBytes("UTF-8")));
+					new ByteArrayInputStream(data.getBytes("UTF-8")));
 		} else {
 			addNumberReq = new AddNumberReq();
 			addNumberReq.setNumberA(14);

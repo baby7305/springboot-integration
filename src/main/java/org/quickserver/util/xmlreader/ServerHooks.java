@@ -1,10 +1,10 @@
 /*
- * This file is part of the QuickServer library 
+ * This file is part of the QuickServer library
  * Copyright (C) QuickServer.org
  *
  * Use, modification, copying and distribution of this software is subject to
- * the terms and conditions of the GNU Lesser General Public License. 
- * You should have received a copy of the GNU LGP License along with this 
+ * the terms and conditions of the GNU Lesser General Public License.
+ * You should have received a copy of the GNU LGP License along with this
  * library; if not, you can download a copy from <http://www.quickserver.org/>.
  *
  * For questions, suggestions, bug-reports, enhancement-requests etc.
@@ -14,31 +14,33 @@
 
 package org.quickserver.util.xmlreader;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Iterator;
 
 /**
- * This class encapsulate the Server Hooks. These are event listeners to 
+ * This class encapsulate the Server Hooks. These are event listeners to
  * the QuickServer.
  * The example xml is <pre>
-	....
-	&lt;server-hooks&gt;
-		&lt;class-name&gt;package1.Class1&lt;/class-name&gt;
-		&lt;class-name&gt;package1.Class2&lt;/class-name&gt;
-	&lt;/server-hooks&gt;
-	....
- </pre>
+ * ....
+ * &lt;server-hooks&gt;
+ * &lt;class-name&gt;package1.Class1&lt;/class-name&gt;
+ * &lt;class-name&gt;package1.Class2&lt;/class-name&gt;
+ * &lt;/server-hooks&gt;
+ * ....
+ * </pre>
+ *
+ * @author Akshathkumar Shetty
  * @see org.quickserver.net.ServerHook
  * @see org.quickserver.util.xmlreader.InitServerHooks
- * @author Akshathkumar Shetty
  * @since 1.3.3
  */
 public class ServerHooks extends ArrayList {
-	
+
 	/**
 	 * Addes the class to server hooks
 	 */
 	public void addClassName(String className) {
-		if(className!=null && className.trim().length()!=0) {
+		if (className != null && className.trim().length() != 0) {
 			add(className.trim());
 		}
 	}
@@ -47,11 +49,11 @@ public class ServerHooks extends ArrayList {
 	 * Returns XML config of this class.
 	 */
 	public String toXML(String pad) {
-		if(pad==null) pad="";
+		if (pad == null) pad = "";
 		StringBuilder sb = new StringBuilder();
 		sb.append(pad).append("<server-hooks>\n");
 		Iterator iterator = iterator();
-		while(iterator.hasNext()) {
+		while (iterator.hasNext()) {
 			String classname = (String) iterator.next();
 			sb.append(pad).append("\t<class-name>").append(classname).append("</class-name>\n");
 		}
