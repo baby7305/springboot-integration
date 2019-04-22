@@ -22,7 +22,7 @@ import java.io.File;
 public class BroadcastServer {
 	public static void main(String s[]) {
 		QuickServer server;
-		String confFile = "." + File.separator + ".." + File.separator + "conf" + File.separator + "BroadcastServer.xml";
+		String confFile = "conf" + File.separator + "BroadcastServer.xml";
 
 		try {
 			server = QuickServer.load(confFile);
