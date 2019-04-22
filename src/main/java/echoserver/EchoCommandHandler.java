@@ -15,7 +15,6 @@
 package echoserver;
 
 import org.quickserver.net.server.ClientCommandHandler;
-import org.quickserver.net.server.ClientEventHandler;
 import org.quickserver.net.server.ClientHandler;
 
 import java.io.IOException;
@@ -23,7 +22,7 @@ import java.net.SocketTimeoutException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-public class EchoCommandHandler implements ClientCommandHandler, ClientEventHandler {
+public class EchoCommandHandler implements ClientCommandHandler {
 	private static Logger logger =
 			Logger.getLogger(EchoCommandHandler.class.getName());
 
@@ -54,7 +53,7 @@ public class EchoCommandHandler implements ClientCommandHandler, ClientEventHand
 
 	public void handleCommand(ClientHandler handler, String command)
 			throws SocketTimeoutException, IOException {
-		if (command.toLowerCase().equals("quit")) {
+		if (command.equals("quit")) {
 			handler.sendClientMsg("Bye ;-)");
 			handler.closeConnection();
 		} else {

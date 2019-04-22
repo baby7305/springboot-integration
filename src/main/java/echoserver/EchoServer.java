@@ -15,12 +15,6 @@ package echoserver;
 
 import org.quickserver.net.AppException;
 import org.quickserver.net.server.QuickServer;
-import org.quickserver.util.xmlreader.KeyStoreInfo;
-import org.quickserver.util.xmlreader.QuickServerConfig;
-import org.quickserver.util.xmlreader.Secure;
-import org.quickserver.util.xmlreader.SecureStore;
-
-import java.io.File;
 
 
 public class EchoServer {
@@ -28,57 +22,25 @@ public class EchoServer {
 	public static String version = "1.3";
 
 	public static void main(String s[]) {
-		startFromXML(s);
-		//startFromCode(s);
-	}
-
-	public static void startFromXML(String s[]) {
-		QuickServer echoServer;
-		String confFile = "conf" + File.separator + "EchoServer.xml";
-
+		QuickServer echoServer = new QuickServer("echoserver.EchoCommandHandler");
+		echoServer.setPort(4123);
+		echoServer.setName("EchoServer");
 		try {
-			echoServer = QuickServer.load(confFile);
+			echoServer.startServer();
 		} catch (AppException e) {
 			System.out.println("Error in server : " + e);
 			e.printStackTrace();
 		}
 	}
 
+
 	public static void startFromCode(String s[]) {
-		QuickServer echoServer = new QuickServer();
+		QuickServer echoServer = new QuickServer("echoserver.EchoCommandHandler");
+		echoServer.setPort(5102);
+		echoServer.setName("EchoServer");
 
 		try {
-			QuickServerConfig cfg = new QuickServerConfig();
-			cfg.setClientCommandHandler("echoserver.EchoCommandHandler");
-			cfg.setClientData("echoserver.Data");
-			cfg.setPort(5102);
-			cfg.setName("EchoServer");
-
-
-			Secure secure = new Secure();
-			secure.setEnable(true);
-			secure.setLoad(true);
-			secure.setPort(5102);
-			secure.setProtocol("SSLv3");
-			secure.setClientAuthEnable(false);
-
-			SecureStore secureStore = new SecureStore();
-			secureStore.setType("JKS");
-			secureStore.setAlgorithm("SunX509");
-
-			KeyStoreInfo keyStoreInfo = new KeyStoreInfo();
-			keyStoreInfo.setStoreFile("./conf/user1.keystore");
-			keyStoreInfo.setStorePassword("user1spass");
-			keyStoreInfo.setKeyPassword("user1kpass");
-
-			secureStore.setKeyStoreInfo(keyStoreInfo);
-			secure.setSecureStore(secureStore);
-
-			cfg.setSecure(secure);
-
-			echoServer.initServer(cfg);
 			echoServer.startServer();
-			echoServer.startQSAdminServer();
 		} catch (AppException e) {
 			System.out.println("Error in server : " + e);
 			e.printStackTrace();
